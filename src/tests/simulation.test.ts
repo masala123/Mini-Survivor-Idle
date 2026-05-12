@@ -60,15 +60,15 @@ describe('Simulation MVP Tests', () => {
     });
 
     it('should stockpile food if slightly hungry', () => {
+      // Isolate test: only one survivor and one resource
+      sim.survivors = [sim.survivors[0]];
       const survivor = sim.survivors[0];
+      survivor.inventory = {};
       survivor.stats.hunger = 80;
       survivor.scoutCooldown = 9999;
       
-      let resource = sim.resources.find(r => r.type === 'BERRY_BUSH');
-      if (!resource) {
-          resource = { id: 'test_berry_stock', type: 'BERRY_BUSH', x: 10, y: 10, amount: 5, maxAmount: 5, regrowRate: 100, regrowTimer: 0 };
-          sim.resources.push(resource);
-      }
+      const resource = { id: 'test_berry_stock', type: 'BERRY_BUSH', x: 10, y: 10, amount: 5, maxAmount: 5, regrowRate: 100, regrowTimer: 0 } as any;
+      sim.resources = [resource];
       survivor.x = resource.x;
       survivor.y = resource.y;
 

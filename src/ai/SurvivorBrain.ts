@@ -57,35 +57,33 @@ export class SurvivorBrain {
     }
 
     // 0.5 Utility: Equip Tools & Torches
-    // Always try to equip the best weapon if we have one and we aren't starving
-    const weapons = ['crystal_spear', 'bone_club', 'axe', 'torch'];
-    let bestWeaponToEquip = null;
-    for (const w of weapons) {
-        if ((survivor.inventory[w] || 0) > 0) {
-            bestWeaponToEquip = w;
+    const gearPriority = ['crystal_spear', 'bone_club', 'axe', 'torch'];
+    
+    // Find the best gear available (either in inventory or already equipped)
+    let bestAvailableGear = null;
+    for (const item of gearPriority) {
+        if ((survivor.inventory[item] || 0) > 0 || survivor.equippedTool?.id === item) {
+            bestAvailableGear = item;
             break;
         }
     }
 
-    if (time.phase === 'NIGHT' && (!survivor.equippedTool || survivor.equippedTool.id !== 'torch') && (survivor.inventory['torch'] || 0) > 0) {
-        survivor.currentTask = { type: 'EQUIP', itemId: 'torch' };
-        survivor.debugState = 'Task: EQUIP | Reason: Need Light';
-        return;
-    }
-
-    if (time.phase !== 'NIGHT' && bestWeaponToEquip && (!survivor.equippedTool || survivor.equippedTool.id !== bestWeaponToEquip)) {
-        survivor.currentTask = { type: 'EQUIP', itemId: bestWeaponToEquip };
-        survivor.debugState = `Task: EQUIP | Reason: Equip ${bestWeaponToEquip}`;
-        return;
-    }
-
-    // Un-equip torch in morning to save durability (or just auto-swap to best tool)
-    if (time.phase === 'MORNING' && survivor.equippedTool?.id === 'torch') {
-        if (bestWeaponToEquip) {
-            survivor.currentTask = { type: 'EQUIP', itemId: bestWeaponToEquip };
-            survivor.debugState = 'Task: EQUIP | Reason: Morning swap';
+    // A. NIGHT LOGIC: Priority 1 is Torch
+    if (time.phase === 'NIGHT') {
+        const hasTorch = survivor.equippedTool?.id === 'torch' || (survivor.inventory['torch'] || 0) > 0;
+        if (hasTorch && survivor.equippedTool?.id !== 'torch') {
+            survivor.currentTask = { type: 'EQUIP', itemId: 'torch' };
+            survivor.debugState = 'Task: EQUIP | Reason: Night Light';
             return;
         }
+    }
+
+    // B. NON-NIGHT LOGIC: Priority is best combat/work gear
+    if (time.phase !== 'NIGHT' && bestAvailableGear && survivor.equippedTool?.id !== bestAvailableGear) {
+        // Special case: if it's morning and we have a torch, swap it for something better
+        survivor.currentTask = { type: 'EQUIP', itemId: bestAvailableGear };
+        survivor.debugState = `Task: EQUIP | Reason: Best Gear (${bestAvailableGear})`;
+        return;
     }
 
     // 1. Survival: Eat
@@ -97,9 +95,9 @@ export class SurvivorBrain {
 
     // 1.5 Survival: Relax (Low Morale)
     if (isMoraleLow) {
-        const hasCampfire = structures.some(s => s.type === 'campfire' && s.isComplete);
-        if (hasCampfire) {
-            survivor.currentTask = { type: 'RELAX' };
+        const campfire = structures.find(s => s.type === 'campfire' && s.isComplete);
+        if (campfire) {
+            survivor.currentTask = { type: 'RELAX', targetId: campfire.id };
             survivor.debugState = 'Task: RELAX | Reason: Low Morale';
             return;
         }
@@ -347,21 +345,44 @@ export class SurvivorBrain {
             break;
         }
         case 'BUILD': {
-            const target = structures.find(s => s.id === survivor.currentTask?.targetId);
+            const tId = survivor.currentTask?.targetId;
+            const sId = survivor.currentTask?.structureId;
+            let target = structures.find(s => s.id === tId);
+
+            if (!target && sId) {
+                const data = structureData[sId];
+                if (data) {
+                    // Consume materials
+                    for (const ing of data.ingredients) {
+                        survivor.inventory[ing.itemId] = (survivor.inventory[ing.itemId] || 0) - ing.amount;
+                    }
+                    // Place it near survivor
+                    const offsetX = (Math.random() - 0.5) * 40;
+                    const offsetY = (Math.random() - 0.5) * 40;
+                    target = createStructure(`${sId}_${Date.now()}`, sId, survivor.x + offsetX, survivor.y + offsetY, false);
+                    structures.push(target);
+                    survivor.currentTask!.targetId = target.id;
+                    survivor.debugState = `Placed blueprint for ${data.name}`;
+                }
+            }
+
             if (target && !target.isComplete) {
                 const dist = Math.sqrt(Math.pow(survivor.x - target.x, 2) + Math.pow(survivor.y - target.y, 2));
                 if (dist < 30) {
-                    target.constructionProgress += 1;
+                    target.constructionProgress += 20; // 5 ticks to finish
                     survivor.debugState = `Building ${target.type}... ${target.constructionProgress}%`;
                     if (target.constructionProgress >= 100) {
                         target.isComplete = true;
+                        target.constructionProgress = 100;
                         survivor.currentTask = null;
                         survivor.debugState = `Finished building ${target.type}`;
                     }
                 } else {
                     this.moveSurvivor(survivor, animals, target.x, target.y);
                 }
-            } else { survivor.currentTask = null; }
+            } else if (!sId) {
+                 survivor.currentTask = null; 
+            }
             break;
         }
         case 'HARVEST_FARM': {

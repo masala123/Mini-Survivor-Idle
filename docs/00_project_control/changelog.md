@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## 2026-05-13
+
+### Added (MVP 4 & 5)
+- **Dinosaur Ecosystem**: Introduced `Compsognathus`, `Velociraptor`, and `T-Rex` as monsters.
+- **Natural Ecosystem**: Added `EcosystemSystem` for natural dinosaur spawning during the day (Triceratops, Ankylosaurus).
+- **Animal AI**: Implemented autonomous behaviors for animals including grazing, wandering, and hunting.
+- **Faction System**: Animals now belong to `HOSTILE`, `NEUTRAL`, or `TAMED` factions.
+- **Taming System**: Survivors can tame neutral dinosaurs using food (vegetables/ferns).
+- **Mounting & Riding**: Survivors can ride tamed dinosaurs for a 2x movement speed boost.
+- **Prehistoric Resources**: Added `FERN_BUSH`, `BONE_PILE`, `FOSSIL_DEPOSIT`, and `ANCIENT_TECH_NODE`.
+- **Endgame Objective**: Added the `Dimensional Beacon` structure as a late-game resource sink.
+- **Thematic Weapons**: Added `Bone Club` and `Crystal Spear` with dynamic attack power bonuses.
+- **Documentation Restructure**: Reorganized project documents to follow a Commercial Game Product Pipeline.
+- **AI Rule of Three**: Formalized the requirement for AI agents to update status, roadmap, and design docs after every task.
+
+### Fixed
+- **Equipment Flip-Flop**: Fixed a bug where survivors would repeatedly switch between torch and axe by considering already equipped items in the "best gear" logic.
+- **AI Task Stalls**: Fixed missing target IDs for `RELAX` and `BUILD` tasks that caused the AI to cancel tasks immediately.
+- **Survivor Duplication**: Fixed an issue where survivors appeared twice in the UI due to React Strict Mode double-initialization.
+- **Test Stability**: Isolated simulation tests to ensure deterministic results regardless of procedural world generation.
+
+---
+
 ## 2026-05-12
 
 ### Added

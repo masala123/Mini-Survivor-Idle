@@ -6,6 +6,7 @@ export interface Structure {
   health: number;
   maxHealth: number;
   isComplete: boolean;
+  constructionProgress: number;
   inventory?: Record<string, number>;
   farmProgress?: number;
 }
@@ -25,6 +26,7 @@ export const createStructure = (
     health: 100,
     maxHealth: 100,
     isComplete,
+    constructionProgress: isComplete ? 100 : 0,
   };
 
   if (type === 'chest') {
