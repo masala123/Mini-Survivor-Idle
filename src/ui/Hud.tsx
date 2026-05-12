@@ -14,6 +14,8 @@ interface HudProps {
   placementStructureId: string | null;
   onBeginPlaceStructure: (structureId: string) => void;
   onCancelPlaceStructure: () => void;
+  onMount: (survivorId: string, animalId: string) => void;
+  onDismount: (survivorId: string) => void;
 }
 
 export const Hud: React.FC<HudProps> = ({
@@ -28,6 +30,8 @@ export const Hud: React.FC<HudProps> = ({
   placementStructureId,
   onBeginPlaceStructure,
   onCancelPlaceStructure,
+  onMount,
+  onDismount,
 }) => {
   const survivors = sim.survivors;
 
@@ -197,11 +201,32 @@ export const Hud: React.FC<HudProps> = ({
         {!sim.progression.isRecipeUnlocked('craft_crystal_spear') && (
            <button 
                onClick={() => onUnlock('craft_crystal_spear')}
-               style={{ padding: '5px 10px', cursor: 'pointer', width: '100%' }}
+               style={{ padding: '5px 10px', cursor: 'pointer', width: '100%', marginBottom: '10px' }}
            >
                Unlock Crystal Spear
            </button>
         )}
+
+        <div style={{ marginTop: '10px' }}>
+            {selected.mountedAnimalId ? (
+                <button 
+                    onClick={() => onDismount(selected.id)}
+                    style={{ padding: '8px 10px', cursor: 'pointer', width: '100%', backgroundColor: '#ff9800', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}
+                >
+                    Dismount Animal
+                </button>
+            ) : (
+                <button 
+                    onClick={() => {
+                        const tamed = sim.animals.find(a => a.faction === 'TAMED');
+                        if (tamed) onMount(selected.id, tamed.id);
+                    }}
+                    style={{ padding: '8px 10px', cursor: 'pointer', width: '100%', backgroundColor: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}
+                >
+                    Mount Tamed Animal
+                </button>
+            )}
+        </div>
       </div>
     </div>
   );

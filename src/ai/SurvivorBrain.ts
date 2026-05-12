@@ -274,6 +274,32 @@ export class SurvivorBrain {
     }
   }
 
+  private moveSurvivor(survivor: Survivor, animals: Animal[], tx: number, ty: number, baseSpeed: number = 2.0): void {
+    const dx = tx - survivor.x;
+    const dy = ty - survivor.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < 5) return;
+
+    let speed = baseSpeed;
+    let moveTarget: { x: number, y: number } = survivor;
+
+    if (survivor.mountedAnimalId) {
+        const animal = animals.find(a => a.id === survivor.mountedAnimalId);
+        if (animal) {
+            speed *= 2.0; // Double speed when mounted
+            moveTarget = animal;
+        }
+    }
+
+    moveTarget.x += (dx / dist) * speed;
+    moveTarget.y += (dy / dist) * speed;
+    
+    // Sync survivor position immediately to avoid jitter
+    survivor.x = moveTarget.x;
+    survivor.y = moveTarget.y;
+  }
+
   public executeTask(survivor: Survivor, resources: ResourceNode[], structures: Structure[], animals: Animal[]): void {
      if (!survivor.currentTask) return;
 
@@ -281,171 +307,148 @@ export class SurvivorBrain {
         case 'GATHER_FOOD': {
             const target = resources.find(r => r.id === survivor.currentTask?.targetId);
             if (target && target.amount > 0) {
-                target.amount -= 1;
-                survivor.inventory['berry'] = (survivor.inventory['berry'] || 0) + 1;
-                survivor.debugState = `Gathered berry. Inventory: ${survivor.inventory['berry']}`;
-                survivor.currentTask = null; 
+                const dist = Math.sqrt(Math.pow(survivor.x - target.x, 2) + Math.pow(survivor.y - target.y, 2));
+                if (dist < 20) {
+                    target.amount -= 1;
+                    const itemId = resourceToItemMap[target.type] || 'item';
+                    survivor.inventory[itemId] = (survivor.inventory[itemId] || 0) + 1;
+                    survivor.debugState = `Gathered ${itemId}. Inventory: ${survivor.inventory[itemId]}`;
+                    survivor.currentTask = null; 
+                } else {
+                    this.moveSurvivor(survivor, animals, target.x, target.y);
+                }
             } else { survivor.currentTask = null; }
-            break;
-        }
-        case 'HARVEST_FARM': {
-            const target = structures.find(s => s.id === survivor.currentTask?.targetId);
-            if (target && target.type === 'farm_plot' && target.isComplete && (target.inventory?.['vegetable'] || 0) > 0) {
-                target.inventory!['vegetable'] -= 1;
-                survivor.inventory['vegetable'] = (survivor.inventory['vegetable'] || 0) + 1;
-                survivor.debugState = `Harvested vegetable. Inventory: ${survivor.inventory['vegetable']}`;
-            }
-            survivor.currentTask = null;
-            break;
-        }
-        case 'SCOUT': {
-            const tx = survivor.currentTask.targetX;
-            const ty = survivor.currentTask.targetY;
-            if (typeof tx !== 'number' || typeof ty !== 'number') {
-              survivor.currentTask = null;
-              break;
-            }
-
-            // Abort scouting if morale is low and a campfire exists (let AI decide RELAX next tick).
-            if (survivor.stats.morale < 30 && structures.some(s => s.type === 'campfire' && s.isComplete)) {
-              survivor.currentTask = null;
-              break;
-            }
-
-            const dx = tx - survivor.x;
-            const dy = ty - survivor.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 4) {
-              if (!survivor.debugState.startsWith('Player')) {
-                survivor.debugState = 'Finished scouting';
-              }
-              survivor.currentTask = null;
-              break;
-            }
-
-            const speed = 2.0;
-            survivor.x += (dx / dist) * speed;
-            survivor.y += (dy / dist) * speed;
             break;
         }
         case 'GATHER_MATERIAL': {
             const target = resources.find(r => r.id === survivor.currentTask?.targetId);
             if (target && target.amount > 0) {
-                target.amount -= 1;
-                const itemId = resourceToItemMap[target.type] || 'item';
-                survivor.inventory[itemId] = (survivor.inventory[itemId] || 0) + 1;
-                
-                if (survivor.equippedTool) {
-                    survivor.equippedTool.durability -= 5;
-                    if (survivor.equippedTool.durability <= 0) {
-                        survivor.debugState = `Tool ${survivor.equippedTool.id} broke!`;
-                        survivor.equippedTool = null;
-                        survivor.currentTask = null;
-                        return;
+                const dist = Math.sqrt(Math.pow(survivor.x - target.x, 2) + Math.pow(survivor.y - target.y, 2));
+                if (dist < 20) {
+                    target.amount -= 1;
+                    const itemId = resourceToItemMap[target.type] || 'item';
+                    survivor.inventory[itemId] = (survivor.inventory[itemId] || 0) + 1;
+                    
+                    if (survivor.equippedTool) {
+                        survivor.equippedTool.durability -= 5;
+                        if (survivor.equippedTool.durability <= 0) {
+                            survivor.debugState = `Tool ${survivor.equippedTool.id} broke!`;
+                            survivor.equippedTool = null;
+                            survivor.currentTask = null;
+                            return;
+                        }
                     }
+                    survivor.debugState = `Gathered ${itemId}. Inventory: ${survivor.inventory[itemId]}`;
+                    survivor.currentTask = null; 
+                } else {
+                    this.moveSurvivor(survivor, animals, target.x, target.y);
                 }
-                survivor.debugState = `Gathered ${itemId}. Inventory: ${survivor.inventory[itemId]}`;
-                survivor.currentTask = null; 
             } else { survivor.currentTask = null; }
             break;
         }
-        case 'EQUIP': {
-            const itemId = survivor.currentTask.itemId;
-            if (itemId && (survivor.inventory[itemId] || 0) > 0) {
-                survivor.inventory[itemId] -= 1;
-                survivor.equippedTool = { id: itemId, durability: itemData[itemId]?.stats?.durability || 100 };
-                survivor.debugState = `Equipped ${itemId}!`;
+        case 'BUILD': {
+            const target = structures.find(s => s.id === survivor.currentTask?.targetId);
+            if (target && !target.isComplete) {
+                const dist = Math.sqrt(Math.pow(survivor.x - target.x, 2) + Math.pow(survivor.y - target.y, 2));
+                if (dist < 30) {
+                    target.constructionProgress += 1;
+                    survivor.debugState = `Building ${target.type}... ${target.constructionProgress}%`;
+                    if (target.constructionProgress >= 100) {
+                        target.isComplete = true;
+                        survivor.currentTask = null;
+                        survivor.debugState = `Finished building ${target.type}`;
+                    }
+                } else {
+                    this.moveSurvivor(survivor, animals, target.x, target.y);
+                }
+            } else { survivor.currentTask = null; }
+            break;
+        }
+        case 'HARVEST_FARM': {
+            const target = structures.find(s => s.id === survivor.currentTask?.targetId);
+            if (target && target.type === 'farm_plot' && target.isComplete && (target.inventory?.['vegetable'] || 0) >= 1) {
+                const dist = Math.sqrt(Math.pow(survivor.x - target.x, 2) + Math.pow(survivor.y - target.y, 2));
+                if (dist < 30) {
+                    target.inventory!['vegetable'] -= 1;
+                    survivor.inventory['vegetable'] = (survivor.inventory['vegetable'] || 0) + 1;
+                    survivor.debugState = `Harvested vegetable. Inventory: ${survivor.inventory['vegetable']}`;
+                    survivor.currentTask = null;
+                } else {
+                    this.moveSurvivor(survivor, animals, target.x, target.y);
+                }
+            } else { survivor.currentTask = null; }
+            break;
+        }
+        case 'SCOUT': {
+            const tx = survivor.currentTask.targetX!;
+            const ty = survivor.currentTask.targetY!;
+            const dist = Math.sqrt(Math.pow(survivor.x - tx, 2) + Math.pow(survivor.y - ty, 2));
+            
+            if (dist < 10) {
+              survivor.scoutCooldown = 500;
+              survivor.currentTask = null;
+              break;
             }
-            survivor.currentTask = null;
+
+            this.moveSurvivor(survivor, animals, tx, ty, 2.0);
             break;
         }
         case 'STORE': {
-            const chest = structures.find(s => s.id === survivor.currentTask?.targetId);
-            if (chest && chest.inventory) {
-                const itemsToStore = ['wood', 'stone'];
-                itemsToStore.forEach(itemId => {
-                    const amount = survivor.inventory[itemId] || 0;
-                    if (amount > 0) {
-                        chest.inventory![itemId] = (chest.inventory![itemId] || 0) + amount;
-                        survivor.inventory[itemId] = 0;
+            const target = structures.find(s => s.id === survivor.currentTask?.targetId);
+            if (target && target.type === 'chest' && target.isComplete) {
+                const dist = Math.sqrt(Math.pow(survivor.x - target.x, 2) + Math.pow(survivor.y - target.y, 2));
+                if (dist < 30) {
+                    // Deposit all materials
+                    for (const itemId in survivor.inventory) {
+                        const item = itemData[itemId];
+                        if (item && item.type === 'MATERIAL') {
+                            const amount = survivor.inventory[itemId];
+                            target.inventory![itemId] = (target.inventory![itemId] || 0) + amount;
+                            survivor.inventory[itemId] = 0;
+                        }
                     }
-                });
-                survivor.debugState = 'Stored items in chest';
-            }
-            survivor.currentTask = null;
+                    survivor.debugState = 'Stored materials in chest';
+                    survivor.currentTask = null;
+                } else {
+                    this.moveSurvivor(survivor, animals, target.x, target.y);
+                }
+            } else { survivor.currentTask = null; }
             break;
         }
         case 'EAT_FOOD': {
-            const availableFoods = Object.values(itemData)
+            const foodItemIds = Object.values(itemData)
               .filter(i => i.type === 'FOOD')
-              .filter(i => (survivor.inventory[i.id] || 0) > 0);
-
-            const bestFood = availableFoods.sort((a, b) => (b.stats?.hungerRecover || 0) - (a.stats?.hungerRecover || 0))[0];
-            if (bestFood) {
-                survivor.inventory[bestFood.id] -= 1;
-                const hungerRecover = bestFood.stats?.hungerRecover || 0;
-                survivor.stats.hunger = Math.min(survivor.stats.hunger + hungerRecover, survivor.stats.maxHunger);
-                survivor.debugState = `Ate ${bestFood.id}. Hunger: ${Math.floor(survivor.stats.hunger)}`;
+              .map(i => i.id);
+            const foodId = foodItemIds.find(id => (survivor.inventory[id] || 0) > 0);
+            if (foodId) {
+                survivor.inventory[foodId] -= 1;
+                const recovery = itemData[foodId].stats?.hungerRecover || 20;
+                survivor.stats.hunger = Math.min(survivor.stats.maxHunger, survivor.stats.hunger + recovery);
+                survivor.debugState = `Ate ${foodId}. Hunger: ${Math.round(survivor.stats.hunger)}`;
             }
             survivor.currentTask = null;
             break;
         }
-        case 'CRAFT': {
-            const rId = survivor.currentTask.recipeId;
-            const recipe = recipes.find(r => r.id === rId);
-            if (recipe) {
-                recipe.ingredients.forEach(ing => {
-                    survivor.inventory[ing.itemId] -= ing.amount;
-                });
-                survivor.inventory[recipe.resultId] = (survivor.inventory[recipe.resultId] || 0) + recipe.amount;
-                survivor.debugState = `Crafted ${recipe.resultId}!`;
-            }
-            survivor.currentTask = null;
-            break;
-        }
-        case 'BUILD': {
-            const sId = survivor.currentTask.structureId;
-            const tId = survivor.currentTask.targetId;
-            let target: Structure | undefined;
-
-            if (tId) {
-                target = structures.find(s => s.id === tId);
-            } else if (sId) {
-                const data = structureData[sId];
-                data.ingredients.forEach(ing => {
-                    survivor.inventory[ing.itemId] -= ing.amount;
-                });
-                
-                const offsetX = (Math.random() - 0.5) * 60;
-                const offsetY = (Math.random() - 0.5) * 60;
-                target = createStructure(`${sId}_${Date.now()}`, sId, survivor.x + offsetX, survivor.y + offsetY, false);
-                structures.push(target);
-                survivor.currentTask.targetId = target.id;
-            }
-
-            if (target && !target.isComplete) {
-                survivor.currentTask.progress = (survivor.currentTask.progress || 0) + 20; // 5 ticks to build
-                survivor.debugState = `Building ${target.type}... ${survivor.currentTask.progress}%`;
-                
-                if (survivor.currentTask.progress >= 100) {
-                    target.isComplete = true;
-                    survivor.debugState = `Finished ${target.type}!`;
-                    survivor.currentTask = null;
+        case 'EQUIP': {
+            const itemId = survivor.currentTask.itemId!;
+            const item = itemData[itemId];
+            if (item && (survivor.inventory[itemId] || 0) > 0) {
+                if (survivor.equippedTool) {
+                    survivor.inventory[survivor.equippedTool.id] = (survivor.inventory[survivor.equippedTool.id] || 0) + 1;
                 }
-            } else {
-                survivor.currentTask = null;
+                survivor.equippedTool = { id: itemId, durability: item.stats?.durability || 100 };
+                survivor.inventory[itemId] -= 1;
+                survivor.debugState = `Equipped ${item.name}`;
             }
+            survivor.currentTask = null;
             break;
         }
         case 'RELAX': {
-            const campfire = structures.find(s => s.type === 'campfire' && s.isComplete);
-            if (campfire) {
-                // Move towards campfire if far
-                const dist = Math.sqrt(Math.pow(survivor.x - campfire.x, 2) + Math.pow(survivor.y - campfire.y, 2));
-                if (dist > 30) {
-                    survivor.x += survivor.x < campfire.x ? 2 : -2;
-                    survivor.y += survivor.y < campfire.y ? 2 : -2;
-                    survivor.debugState = 'Moving to Campfire to relax';
+            const target = structures.find(s => s.id === survivor.currentTask?.targetId);
+            if (target && target.isComplete) {
+                const dist = Math.sqrt(Math.pow(survivor.x - target.x, 2) + Math.pow(survivor.y - target.y, 2));
+                if (dist > 40) {
+                    this.moveSurvivor(survivor, animals, target.x, target.y);
                 } else {
                     survivor.debugState = 'Relaxing by Campfire';
                     survivor.stats.morale = Math.min(survivor.stats.maxMorale, survivor.stats.morale + 0.3);
@@ -458,29 +461,45 @@ export class SurvivorBrain {
             }
             break;
         }
+        case 'CRAFT': {
+            const rId = survivor.currentTask.recipeId!;
+            const recipe = recipes.find(r => r.id === rId);
+            if (recipe) {
+                recipe.ingredients.forEach(ing => {
+                    survivor.inventory[ing.itemId] -= ing.amount;
+                });
+                survivor.inventory[recipe.resultId] = (survivor.inventory[recipe.resultId] || 0) + recipe.amount;
+                survivor.debugState = `Crafted ${recipe.resultId}!`;
+            }
+            survivor.currentTask = null;
+            break;
+        }
         case 'FIGHT': {
             const target = animals.find(a => a.id === survivor.currentTask?.targetId);
             if (target) {
-                let totalAttack = survivor.stats.attackPower;
-                if (survivor.equippedTool) {
-                    const toolStats = itemData[survivor.equippedTool.id]?.stats;
-                    if (toolStats && toolStats.attackPower) {
-                        totalAttack += toolStats.attackPower;
+                const dist = Math.sqrt(Math.pow(survivor.x - target.x, 2) + Math.pow(survivor.y - target.y, 2));
+                if (dist < 40) {
+                    let totalAttack = survivor.stats.attackPower;
+                    if (survivor.equippedTool) {
+                        const toolStats = itemData[survivor.equippedTool.id]?.stats;
+                        if (toolStats && toolStats.attackPower) {
+                            totalAttack += toolStats.attackPower;
+                        }
+                        survivor.equippedTool.durability -= 2;
+                        if (survivor.equippedTool.durability <= 0) {
+                            survivor.debugState = `Weapon ${survivor.equippedTool.id} broke!`;
+                            survivor.equippedTool = null;
+                        }
                     }
-                    survivor.equippedTool.durability -= 2;
-                    if (survivor.equippedTool.durability <= 0) {
-                        survivor.debugState = `Weapon ${survivor.equippedTool.id} broke!`;
-                        survivor.equippedTool = null;
+                    
+                    target.health -= totalAttack;
+                    survivor.debugState = `Fighting ${target.type}. Animal HP: ${Math.round(target.health)}`;
+                    if (target.health <= 0) {
+                        survivor.debugState = `Defeated ${target.type}!`;
+                        survivor.currentTask = null;
                     }
-                }
-                
-                target.health -= totalAttack;
-                survivor.debugState = `Fighting ${target.type}. Animal HP: ${target.health}`;
-                if (target.health <= 0) {
-                    const idx = animals.indexOf(target);
-                    animals.splice(idx, 1);
-                    survivor.debugState = `Defeated ${target.type}!`;
-                    survivor.currentTask = null;
+                } else {
+                    this.moveSurvivor(survivor, animals, target.x, target.y, 2.5);
                 }
             } else { survivor.currentTask = null; }
             break;
@@ -488,11 +507,16 @@ export class SurvivorBrain {
         case 'FLEE': {
             const target = animals.find(a => a.id === survivor.currentTask?.targetId);
             if (target) {
-                survivor.x += survivor.x > target.x ? 5 : -5;
-                survivor.y += survivor.y > target.y ? 5 : -5;
-                survivor.debugState = `Fleeing from ${target.type}!`;
-                const dist = Math.sqrt(Math.pow(survivor.x - target.x, 2) + Math.pow(survivor.y - target.y, 2));
-                if (dist > 150) survivor.currentTask = null;
+                const dx = survivor.x - target.x;
+                const dy = survivor.y - target.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 150) {
+                    survivor.currentTask = null;
+                } else {
+                    this.moveSurvivor(survivor, animals, survivor.x + (dx > 0 ? 50 : -50), survivor.y + (dy > 0 ? 50 : -50), 3.0);
+                    survivor.debugState = `Fleeing from ${target.type}!`;
+                }
             } else { survivor.currentTask = null; }
             break;
         }

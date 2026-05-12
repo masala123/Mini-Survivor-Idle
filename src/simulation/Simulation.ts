@@ -11,6 +11,7 @@ import { MoraleSystem } from '../systems/MoraleSystem';
 import { WeatherSystem } from '../systems/WeatherSystem';
 import { FarmingSystem } from '../systems/FarmingSystem';
 import { EcosystemSystem } from '../systems/EcosystemSystem';
+import { AnimalAISystem } from '../systems/AnimalAISystem';
 
 import { Structure } from '../entities/Structure';
 
@@ -49,6 +50,7 @@ export class Simulation {
   private combatSystem: CombatSystem;
   private farmingSystem: FarmingSystem;
   private ecosystemSystem: EcosystemSystem;
+  private animalAISystem: AnimalAISystem;
 
   constructor() {
     this.brain = new SurvivorBrain();
@@ -63,6 +65,7 @@ export class Simulation {
     this.weather = new WeatherSystem();
     this.farmingSystem = new FarmingSystem();
     this.ecosystemSystem = new EcosystemSystem();
+    this.animalAISystem = new AnimalAISystem();
     this.world = createWorld(1337, 40, 30, 20);
     this.resetDiscovery();
     this.resetPois();
@@ -108,6 +111,7 @@ export class Simulation {
     this.updateDiscovery();
     this.farmingSystem.tick(this.structures, this.weather.state);
     this.ecosystemSystem.tick(this.tickCount, this.animals, this.world, this.time.state.phase);
+    this.animalAISystem.tick(this.animals, this.resources, this.survivors);
     this.handleAnimalSpawning();
     this.hungerSystem.tick(this.survivors);
     this.resourceSystem.tick(this.resources);
@@ -118,12 +122,26 @@ export class Simulation {
     }
 
     this.combatSystem.tick(this.survivors, this.animals);
+    this.animals = this.animals.filter(a => a.health > 0);
     
     const hasCampfire = this.structures.some(s => s.type === 'campfire' && s.isComplete);
     this.moraleSystem.tick(this.survivors, this.time.state.phase === 'NIGHT', hasCampfire, this.weather.state);
 
     // 2.5 Equipment Passive Effects
     this.handleEquipmentEffects();
+
+    // 2.6 Handle Mounting Sync
+    for (const survivor of this.survivors) {
+        if (survivor.mountedAnimalId) {
+            const animal = this.animals.find(a => a.id === survivor.mountedAnimalId);
+            if (animal) {
+                survivor.x = animal.x;
+                survivor.y = animal.y;
+            } else {
+                survivor.mountedAnimalId = null; // Animal died or vanished
+            }
+        }
+    }
 
     // 3. AI Decision & Execution
     for (const survivor of this.survivors) {
@@ -312,6 +330,72 @@ export class Simulation {
 
         this.structures.push(createStructure(`${data.id}_${Date.now()}`, data.id, cmd.x, cmd.y, false));
         survivor.debugState = `Player: Placed ${data.name}`;
+        break;
+      }
+      case 'TAME_ANIMAL': {
+        const survivor = this.survivors.find(s => s.id === cmd.survivorId);
+        const animal = this.animals.find(a => a.id === cmd.targetId);
+        if (!survivor || !animal) break;
+
+        if (animal.faction !== 'NEUTRAL') {
+            survivor.debugState = `Player: Cannot tame ${animal.type} (not neutral)`;
+            break;
+        }
+
+        const dist = Math.sqrt(Math.pow(survivor.x - animal.x, 2) + Math.pow(survivor.y - animal.y, 2));
+        if (dist > 50) {
+            survivor.debugState = `Player: Too far to tame ${animal.type}`;
+            break;
+        }
+
+        const tamingFood = ['vegetable', 'fern'];
+        const foodId = tamingFood.find(f => (survivor.inventory[f] || 0) > 0);
+
+        if (foodId) {
+            survivor.inventory[foodId] -= 1;
+            animal.faction = 'TAMED';
+            animal.currentTask = null;
+            animal.debugState = 'TAMED!';
+            survivor.debugState = `Player: Tamed ${animal.type} with ${foodId}`;
+        } else {
+            survivor.debugState = `Player: Need vegetable or fern to tame ${animal.type}`;
+        }
+        break;
+      }
+      case 'MOUNT_ANIMAL': {
+        const survivor = this.survivors.find(s => s.id === cmd.survivorId);
+        const animal = this.animals.find(a => a.id === cmd.targetId);
+        if (!survivor || !animal) break;
+
+        if (animal.faction !== 'TAMED') {
+            survivor.debugState = `Player: Cannot ride ${animal.type} (not tamed)`;
+            break;
+        }
+
+        const dist = Math.sqrt(Math.pow(survivor.x - animal.x, 2) + Math.pow(survivor.y - animal.y, 2));
+        if (dist > 60) {
+            survivor.debugState = `Player: Too far to ride ${animal.type}`;
+            break;
+        }
+
+        if (animal.mountedBySurvivorId && animal.mountedBySurvivorId !== survivor.id) {
+            survivor.debugState = `Player: ${animal.type} is already being ridden`;
+            break;
+        }
+
+        survivor.mountedAnimalId = animal.id;
+        animal.mountedBySurvivorId = survivor.id;
+        survivor.debugState = `Player: Riding ${animal.type}`;
+        break;
+      }
+      case 'DISMOUNT_ANIMAL': {
+        const survivor = this.survivors.find(s => s.id === cmd.survivorId);
+        if (!survivor || !survivor.mountedAnimalId) break;
+
+        const animal = this.animals.find(a => a.id === survivor.mountedAnimalId);
+        if (animal) animal.mountedBySurvivorId = null;
+        survivor.mountedAnimalId = null;
+        survivor.debugState = 'Player: Dismounted';
         break;
       }
     }

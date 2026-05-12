@@ -5,7 +5,10 @@ export type PlayerCommand =
   | { type: 'EMERGENCY_HEAL'; survivorId: string }
   | { type: 'GIVE_ITEM'; survivorId: string; itemId: string; amount?: number }
   | { type: 'PLACE_STRUCTURE'; survivorId: string; structureId: string; x: number; y: number }
-  | { type: 'UNLOCK_RECIPE'; recipeId: string };
+  | { type: 'UNLOCK_RECIPE'; recipeId: string }
+  | { type: 'TAME_ANIMAL'; targetId: string; survivorId: string }
+  | { type: 'MOUNT_ANIMAL'; targetId: string; survivorId: string }
+  | { type: 'DISMOUNT_ANIMAL'; survivorId: string };
 
 export class InteractionSystem {
   private commandQueue: PlayerCommand[] = [];

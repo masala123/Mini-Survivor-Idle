@@ -1,5 +1,12 @@
 export type AnimalFaction = 'HOSTILE' | 'NEUTRAL' | 'TAMED';
 
+export interface AnimalTask {
+  type: 'GRAZE' | 'HUNT' | 'WANDER' | 'SLEEP' | 'FIGHT';
+  targetId: string | null;
+  targetX?: number;
+  targetY?: number;
+}
+
 export interface Animal {
   id: string;
   type: string;
@@ -10,6 +17,9 @@ export interface Animal {
   maxHealth: number;
   attackPower: number;
   targetId: string | null;
+  mountedBySurvivorId: string | null;
+  currentTask: AnimalTask | null;
+  debugState: string;
 }
 
 export const createAnimal = (
@@ -30,4 +40,7 @@ export const createAnimal = (
   maxHealth: health,
   attackPower,
   targetId: null,
+  mountedBySurvivorId: null,
+  currentTask: null,
+  debugState: 'Idle',
 });

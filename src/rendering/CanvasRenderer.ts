@@ -170,6 +170,13 @@ export class CanvasRenderer {
       this.ctx.fillRect(animal.x + 190, animal.y + 180, 20, 3);
       this.ctx.fillStyle = '#00ff00';
       this.ctx.fillRect(animal.x + 190, animal.y + 180, 20 * (animal.health / animal.maxHealth), 3);
+
+      // Animal Debug State Label
+      this.ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      this.ctx.fillRect(animal.x + 180, animal.y + 165, 100, 12);
+      this.ctx.fillStyle = 'white';
+      this.ctx.font = '9px Courier New';
+      this.ctx.fillText(animal.debugState, animal.x + 182, animal.y + 174);
     }
     // Render Survivors
     for (const survivor of sim.survivors) {

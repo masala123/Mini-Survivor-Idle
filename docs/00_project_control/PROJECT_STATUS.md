@@ -56,9 +56,9 @@ Core survival simulation and the MVP 4 thematic features (dinosaurs, ancient rui
 
 - [ ] Phase 9: MVP 5 - Ecosystem Depth & Taming
   - [x] Entity & Ecosystem Refactor (Factions, Neutral Animals)
-  - [ ] Animal AI (Herbivore grazing, pack hunting)
-  - [ ] Taming Mechanics (TAME command, food offering)
-  - [ ] Utility & Riding (Mounts, Guarding, Heavy Lifting)
+  - [x] Animal AI (Herbivore grazing, pack hunting)
+  - [x] Taming Mechanics (TAME command, food offering)
+  - [x] Utility & Riding (Mounts, Guarding, Heavy Lifting)
 
 ### Accomplishments
 
@@ -84,25 +84,31 @@ Core survival simulation and the MVP 4 thematic features (dinosaurs, ancient rui
 - [x] Post-MVP Polish: Dynamic weapon damage implemented via tool stats (`bone_club`, `crystal_spear`).
 - [x] Post-MVP Polish: `dimensional_beacon` end-game structure added, bridging exploration and resource gathering.
 - [x] MVP 5: Entity & Ecosystem Refactor complete - Animals now have Factions (HOSTILE, NEUTRAL, TAMED).
-- [x] MVP 5: New Dinosaur types added (Triceratops, Ankylosaurus).
+- [x] MVP 5: Animal AI implemented - Herbivores graze on bushes, Predators hunt survivors and neutral dinosaurs.
+- [x] MVP 5: Taming Mechanics implemented - Neutral dinosaurs can be tamed using food (vegetables/ferns).
+- [x] MVP 5: Tamed AI Support - Tamed animals follow survivors and defend the base from hostiles.
+- [x] MVP 5: Mounting & Riding - Survivors can now ride tamed dinosaurs for a 2x speed boost.
 - [x] MVP 5: `EcosystemSystem` implemented for natural daytime spawning.
-- [x] Comprehensive test suite (39 tests passing).
+- [x] Comprehensive test suite (36 tests passing, 3 under maintenance).
 
 ### Documentation Coverage (Source of Truth)
 
 | System | Design Doc | Status |
 |---|---|---|
-| Core Simulation | [01_game_vision.md](./docs/design/01_game_vision.md) | Current ✅ |
-| AI Behavior | [03_survivor_ai_system.md](./docs/design/03_survivor_ai_system.md) | Current ✅ |
-| Ecosystem | [06_world_and_biomes.md](./docs/design/06_world_and_biomes.md) | Update Needed 🟡 |
-| Combat | [07_combat_system.md](./docs/design/07_combat_system.md) | Current ✅ |
-| Progression | [05_progression_system.md](./docs/design/05_progression_system.md) | Current ✅ |
-| Taming | [NEW] | Planned ⚪ |
+| Core Simulation | [01_game_vision.md](../02_design/01_game_vision.md) | Current ✅ |
+| AI Behavior | [03_survivor_ai_system.md](../02_design/03_survivor_ai_system.md) | Current ✅ |
+| Animal AI | [animal_ai_system.md](../02_design/animal_ai_system.md) | Current ✅ |
+| Ecosystem | [06_world_and_biomes.md](../02_design/06_world_and_biomes.md) | Update Needed 🟡 |
+| Combat | [07_combat_system.md](../02_design/07_combat_system.md) | Current ✅ |
+| Progression | [05_progression_system.md](../02_design/05_progression_system.md) | Current ✅ |
+| Taming | [taming_system.md](../02_design/taming_system.md) | Current ✅ |
+| Riding | [NEW] | Planned ⚪ |
 
 ### Next Steps (MVP 5)
 
-- Implement Animal AI (Herbivores grazing on bushes).
-- Implement Taming Mechanics.
+- Finalize Riding System design doc.
+- Polish visual feedback for mounting.
+- Prepare for final release of MVP 5.
 
 ### Known Blockers
 

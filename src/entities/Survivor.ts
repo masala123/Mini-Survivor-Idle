@@ -26,6 +26,7 @@ export interface Survivor {
   };
   inventory: Record<string, number>;
   equippedTool: EquippedTool | null;
+  mountedAnimalId: string | null;
   currentTask: Task | null;
   debugState: string;
 }
@@ -79,6 +80,7 @@ export const createSurvivor = (id: string, x: number, y: number, personality?: P
   },
   inventory: {},
   equippedTool: null,
+  mountedAnimalId: null,
   currentTask: null,
   debugState: 'Initialized',
 });

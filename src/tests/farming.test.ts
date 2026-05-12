@@ -44,6 +44,11 @@ describe('Farming (MVP 3)', () => {
     );
 
     expect(survivor.currentTask?.type).toBe('HARVEST_FARM');
+    
+    // Teleport to plot
+    survivor.x = plot.x;
+    survivor.y = plot.y;
+
     brain.executeTask(survivor, [], structures, []);
     expect(survivor.inventory['vegetable']).toBe(1);
     expect(plot.inventory?.['vegetable'] || 0).toBe(0);

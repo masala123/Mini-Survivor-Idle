@@ -26,6 +26,8 @@ All development must follow:
 - [MVP Roadmap](../02_design/09_mvp_roadmap.md)
 - [Core Gameplay Loop](../02_design/02_core_gameplay_loop.md)
 - [Survivor AI System](../02_design/03_survivor_ai_system.md)
+- [Animal AI System](../02_design/animal_ai_system.md)
+- [Taming System](../02_design/taming_system.md)
 - [Combat System](../02_design/07_combat_system.md)
 - [World and Biomes](../02_design/06_world_and_biomes.md)
 - [Base Building System](../02_design/08_base_building_system.md)

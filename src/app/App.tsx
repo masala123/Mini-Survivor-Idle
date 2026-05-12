@@ -81,7 +81,11 @@ export const App: React.FC = () => {
     // 1) Animals (rect 20x20 centered roughly at x,y via +190..+210)
     const animal = simRef.current.animals.find(a => worldX >= a.x - 10 && worldX <= a.x + 10 && worldY >= a.y - 10 && worldY <= a.y + 10);
     if (animal) {
-      simRef.current.interaction.pushCommand({ type: 'ASSIST_ATTACK', targetId: animal.id, survivorId: selectedSurvivorId });
+      if (animal.faction === 'HOSTILE') {
+        simRef.current.interaction.pushCommand({ type: 'ASSIST_ATTACK', targetId: animal.id, survivorId: selectedSurvivorId });
+      } else if (animal.faction === 'NEUTRAL') {
+        simRef.current.interaction.pushCommand({ type: 'TAME_ANIMAL', targetId: animal.id, survivorId: selectedSurvivorId });
+      }
       return;
     }
 
@@ -186,6 +190,8 @@ export const App: React.FC = () => {
           setPlacementStructureId(null);
           rendererRef.current?.setPlacementPreview(null);
         }}
+        onMount={(survivorId, animalId) => simRef.current.interaction.pushCommand({ type: 'MOUNT_ANIMAL', survivorId, targetId: animalId })}
+        onDismount={survivorId => simRef.current.interaction.pushCommand({ type: 'DISMOUNT_ANIMAL', survivorId })}
       />
       {simRef.current.isGameOver && (
           <button 
