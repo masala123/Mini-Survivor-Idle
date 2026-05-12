@@ -23,5 +23,8 @@ This file provides context for the Gemini CLI agent working on this project.
 
 ## Active Instruction Files
 
-- [./AI_AGENT_DEVELOPMENT_PROCESS.md](./AI_AGENT_DEVELOPMENT_PROCESS.md)
-- [./docs/agents/16_agent_collaboration_rules.md](./docs/agents/16_agent_collaboration_rules.md)
+- [./docs/00_project_control/ai_agent_rules.md](./docs/00_project_control/ai_agent_rules.md)
+- [./docs/00_project_control/agents/16_agent_collaboration_rules.md](./docs/00_project_control/agents/16_agent_collaboration_rules.md)
+- [./AI_AGENT_GENERAL_GAME_PRODUCT_PIPELINE.md](./AI_AGENT_GENERAL_GAME_PRODUCT_PIPELINE.md)
+- [./docs/00_project_control/00_MASTER_INDEX.md](./docs/00_project_control/00_MASTER_INDEX.md)
+
