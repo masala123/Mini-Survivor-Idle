@@ -1,0 +1,319 @@
+import { Survivor, createSurvivor } from '../entities/Survivor';
+import { ResourceNode, resourceToItemMap } from '../entities/ResourceNode';
+import { SurvivorBrain } from '../ai/SurvivorBrain';
+import { HungerSystem } from '../systems/HungerSystem';
+import { TimeSystem } from '../systems/TimeSystem';
+import { InteractionSystem, PlayerCommand } from '../systems/InteractionSystem';
+import { ResourceSystem } from '../systems/ResourceSystem';
+import { ProgressionSystem } from '../systems/ProgressionSystem';
+import { WaveSystem } from '../systems/WaveSystem';
+import { MoraleSystem } from '../systems/MoraleSystem';
+import { WeatherSystem } from '../systems/WeatherSystem';
+import { FarmingSystem } from '../systems/FarmingSystem';
+import { EcosystemSystem } from '../systems/EcosystemSystem';
+
+import { Structure } from '../entities/Structure';
+
+import { Animal } from '../entities/Animal';
+import { CombatSystem } from '../systems/CombatSystem';
+import { structureData } from '../data/structures';
+import { createStructure } from '../entities/Structure';
+import { isPlacementValid } from '../game/placement';
+import { World, createWorld } from '../game/world';
+import { spawnInitialResources } from '../game/spawn';
+import { Poi, spawnPois } from '../game/poi';
+import { applyPoiReward } from '../game/poiRewards';
+import { applyPoiWorldEffect } from '../game/poiEffects';
+
+export class Simulation {
+  public tickCount: number = 0;
+  public survivors: Survivor[] = [];
+  public resources: ResourceNode[] = [];
+  public structures: Structure[] = [];
+  public animals: Animal[] = [];
+  public world: World;
+  public discovered: boolean[][] = [];
+  public pois: Poi[] = [];
+  public discoveredPoiIds: Set<string> = new Set();
+  public time: TimeSystem;
+  public interaction: InteractionSystem;
+  public progression: ProgressionSystem;
+  public wave: WaveSystem;
+  public moraleSystem: MoraleSystem;
+  public weather: WeatherSystem;
+  public isGameOver: boolean = false;
+
+  private brain: SurvivorBrain;
+  private hungerSystem: HungerSystem;
+  private resourceSystem: ResourceSystem;
+  private combatSystem: CombatSystem;
+  private farmingSystem: FarmingSystem;
+  private ecosystemSystem: EcosystemSystem;
+
+  constructor() {
+    this.brain = new SurvivorBrain();
+    this.hungerSystem = new HungerSystem();
+    this.time = new TimeSystem();
+    this.interaction = new InteractionSystem();
+    this.resourceSystem = new ResourceSystem();
+    this.combatSystem = new CombatSystem();
+    this.progression = new ProgressionSystem();
+    this.wave = new WaveSystem();
+    this.moraleSystem = new MoraleSystem();
+    this.weather = new WeatherSystem();
+    this.farmingSystem = new FarmingSystem();
+    this.ecosystemSystem = new EcosystemSystem();
+    this.world = createWorld(1337, 40, 30, 20);
+    this.resetDiscovery();
+    this.resetPois();
+  }
+
+  private resetDiscovery() {
+    const { widthTiles, heightTiles } = this.world.config;
+    this.discovered = Array.from({ length: heightTiles }, () => Array.from({ length: widthTiles }, () => false));
+  }
+
+  private resetPois() {
+    this.pois = spawnPois(this.world, 8);
+    this.discoveredPoiIds = new Set();
+  }
+
+  public initMockData() {
+    this.survivors = [];
+    this.resources = [];
+    this.survivors.push(createSurvivor('survivor_1', 0, 0, { bravery: 0.7, sociability: 0.6, neuroticism: 0.4 }));
+    this.survivors.push(createSurvivor('survivor_2', 30, 30, { bravery: 0.4, sociability: 0.8, neuroticism: 0.6 }));
+    this.world = createWorld(1337, 40, 30, 20);
+    this.resetDiscovery();
+    this.resetPois();
+    this.resources.push(...spawnInitialResources(this.world, 4));
+  }
+
+  public tick() {
+    if (this.isGameOver) return;
+
+    this.tickCount++;
+
+    // Cooldowns
+    for (const survivor of this.survivors) {
+      survivor.scoutCooldown = Math.max(0, survivor.scoutCooldown - 1);
+    }
+
+    // 1. Process Player Commands
+    this.processCommands();
+
+    // 2. Update vital systems
+    this.time.tick();
+    this.weather.tick();
+    this.updateDiscovery();
+    this.farmingSystem.tick(this.structures, this.weather.state);
+    this.ecosystemSystem.tick(this.tickCount, this.animals, this.world, this.time.state.phase);
+    this.handleAnimalSpawning();
+    this.hungerSystem.tick(this.survivors);
+    this.resourceSystem.tick(this.resources);
+    
+    // Rain helps resources grow faster
+    if (this.weather.state.type === 'RAIN') {
+        this.resourceSystem.tick(this.resources);
+    }
+
+    this.combatSystem.tick(this.survivors, this.animals);
+    
+    const hasCampfire = this.structures.some(s => s.type === 'campfire' && s.isComplete);
+    this.moraleSystem.tick(this.survivors, this.time.state.phase === 'NIGHT', hasCampfire, this.weather.state);
+
+    // 2.5 Equipment Passive Effects
+    this.handleEquipmentEffects();
+
+    // 3. AI Decision & Execution
+    for (const survivor of this.survivors) {
+       if (survivor.stats.health <= 0) {
+         this.isGameOver = true;
+         survivor.debugState = 'DIED';
+         continue;
+       }
+
+       if (!survivor.currentTask || survivor.currentTask.type === 'IDLE') {
+         this.brain.decideTask(
+           survivor,
+           this.resources,
+           this.structures,
+           this.animals,
+           this.time.state,
+           this.progression,
+           this.survivors,
+           this.world,
+           this.discovered
+         );
+       }
+       
+       this.brain.executeTask(survivor, this.resources, this.structures, this.animals);
+    }
+  }
+
+  private updateDiscovery() {
+    const { widthTiles, heightTiles } = this.world.config;
+    const radiusTiles = 2;
+
+    for (const survivor of this.survivors) {
+      const { tx, ty } = this.world.worldToTile(survivor.x, survivor.y);
+
+      for (let oy = -radiusTiles; oy <= radiusTiles; oy++) {
+        for (let ox = -radiusTiles; ox <= radiusTiles; ox++) {
+          const nx = tx + ox;
+          const ny = ty + oy;
+          if (nx < 0 || ny < 0 || nx >= widthTiles || ny >= heightTiles) continue;
+          const wasKnown = this.discovered[ny][nx] === true;
+          this.discovered[ny][nx] = true;
+          if (!wasKnown) {
+            this.onTileDiscovered(nx, ny, survivor.id);
+          }
+        }
+      }
+    }
+  }
+
+  private onTileDiscovered(tx: number, ty: number, bySurvivorId: string) {
+    const found = this.pois.find(p => p.tx === tx && p.ty === ty && !this.discoveredPoiIds.has(p.id));
+    if (!found) return;
+
+    this.discoveredPoiIds.add(found.id);
+    const survivor = this.survivors.find(s => s.id === bySurvivorId);
+    if (survivor) {
+      applyPoiReward(survivor, found);
+      applyPoiWorldEffect(this.world, this.structures, found);
+      survivor.debugState = `Discovered POI: ${found.type}`;
+    }
+  }
+
+  private handleEquipmentEffects() {
+    if (this.time.state.phase === 'NIGHT') {
+      for (const survivor of this.survivors) {
+        if (survivor.equippedTool?.id === 'torch') {
+          survivor.equippedTool.durability -= 0.1; // Passive decay for torch at night
+          if (survivor.equippedTool.durability <= 0) {
+            survivor.equippedTool = null;
+            survivor.debugState = 'Torch burned out!';
+          }
+        }
+      }
+    }
+  }
+
+  private handleAnimalSpawning() {
+    const survivor = this.survivors[0];
+    if (!survivor) return;
+
+    this.wave.checkSpawn(
+      this.time.state.day,
+      this.time.state.phase,
+      this.animals,
+      survivor.x,
+      survivor.y
+    );
+
+    if (this.time.state.phase === 'MORNING') {
+      // Animals vanish at morning
+      this.animals = [];
+    }
+  }
+
+  private processCommands() {
+    const commands = this.interaction.fetchCommands();
+    for (const cmd of commands) {
+      this.handleCommand(cmd);
+    }
+  }
+
+  private handleCommand(cmd: PlayerCommand) {
+    switch (cmd.type) {
+      case 'UNLOCK_RECIPE': {
+        this.progression.unlockRecipe(cmd.recipeId);
+        break;
+      }
+      case 'ASSIST_GATHER': {
+        const resource = this.resources.find(r => r.id === cmd.targetId);
+        if (resource && resource.amount > 0) {
+          resource.amount -= 1;
+          const survivor = (cmd.survivorId ? this.survivors.find(s => s.id === cmd.survivorId) : undefined) ?? this.survivors[0];
+          if (survivor) {
+             const itemId = resourceToItemMap[resource.type] ?? 'item';
+             survivor.inventory[itemId] = (survivor.inventory[itemId] || 0) + 1;
+             survivor.debugState = `Player assisted gathering ${itemId}`;
+          }
+        }
+        break;
+      }
+      case 'ASSIST_ATTACK': {
+        const animal = this.animals.find(a => a.id === cmd.targetId);
+        if (animal) {
+          animal.health -= 10;
+          const survivor = (cmd.survivorId ? this.survivors.find(s => s.id === cmd.survivorId) : undefined) ?? this.survivors[0];
+          if (survivor) survivor.debugState = `Player assisted attack (${animal.type})`;
+          if (animal.health <= 0) {
+            this.animals = this.animals.filter(a => a.id !== animal.id);
+          }
+        }
+        break;
+      }
+      case 'EMERGENCY_FEED': {
+        const survivor = this.survivors.find(s => s.id === cmd.survivorId);
+        if (survivor) {
+          survivor.stats.hunger = Math.min(survivor.stats.hunger + 10, survivor.stats.maxHunger);
+          survivor.debugState = 'Player fed survivor (Emergency)';
+        }
+        break;
+      }
+      case 'EMERGENCY_HEAL': {
+        const survivor = this.survivors.find(s => s.id === cmd.survivorId);
+        if (survivor) {
+          survivor.stats.health = Math.min(survivor.stats.health + 10, survivor.stats.maxHealth);
+          survivor.debugState = 'Player healed survivor (Emergency)';
+        }
+        break;
+      }
+      case 'GIVE_ITEM': {
+        const survivor = this.survivors.find(s => s.id === cmd.survivorId);
+        if (survivor) {
+          const amount = Math.max(1, cmd.amount ?? 1);
+          survivor.inventory[cmd.itemId] = (survivor.inventory[cmd.itemId] || 0) + amount;
+          survivor.debugState = `Player gave ${cmd.itemId} x${amount}`;
+        }
+        break;
+      }
+      case 'PLACE_STRUCTURE': {
+        const survivor = this.survivors.find(s => s.id === cmd.survivorId);
+        const data = structureData[cmd.structureId];
+        if (!survivor || !data) break;
+
+        const placementOk = isPlacementValid({
+          x: cmd.x,
+          y: cmd.y,
+          structures: this.structures,
+          resources: this.resources,
+          survivors: this.survivors,
+          animals: this.animals,
+        });
+        if (!placementOk) {
+          survivor.debugState = `Player: Cannot place ${data.name} (blocked)`;
+          break;
+        }
+
+        const canBuild = data.ingredients.every(ing => (survivor.inventory[ing.itemId] || 0) >= ing.amount);
+        if (!canBuild) {
+          const missing = data.ingredients.find(ing => (survivor.inventory[ing.itemId] || 0) < ing.amount);
+          survivor.debugState = `Player: Cannot place ${data.name} (missing ${missing?.itemId ?? 'materials'})`;
+          break;
+        }
+
+        for (const ing of data.ingredients) {
+          survivor.inventory[ing.itemId] -= ing.amount;
+        }
+
+        this.structures.push(createStructure(`${data.id}_${Date.now()}`, data.id, cmd.x, cmd.y, false));
+        survivor.debugState = `Player: Placed ${data.name}`;
+        break;
+      }
+    }
+  }
+}
