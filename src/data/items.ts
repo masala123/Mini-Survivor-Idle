@@ -55,6 +55,11 @@ export const itemData: Record<string, Item> = {
     name: 'Crystal Tech Fragment',
     type: 'MATERIAL',
   },
+  refined_fossil: {
+    id: 'refined_fossil',
+    name: 'Refined Fossil',
+    type: 'MATERIAL',
+  },
   axe: {
     id: 'axe',
     name: 'Stone Axe',

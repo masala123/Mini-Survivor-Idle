@@ -168,8 +168,26 @@ export const Hud: React.FC<HudProps> = ({
               <button onClick={() => onBeginPlaceStructure('farm_plot')} style={{ padding: '6px 10px', cursor: 'pointer' }}>
                 Farm Plot
               </button>
-              <button onClick={() => onBeginPlaceStructure('dimensional_beacon')} style={{ padding: '6px 10px', cursor: 'pointer', gridColumn: 'span 2' }}>
-                Dimensional Beacon
+              <button onClick={() => onBeginPlaceStructure('wood_shed')} style={{ padding: '6px 10px', cursor: 'pointer' }}>
+                Wood Shed
+              </button>
+              <button onClick={() => onBeginPlaceStructure('stone_mason')} style={{ padding: '6px 10px', cursor: 'pointer' }}>
+                Stone Mason
+              </button>
+              <button onClick={() => onBeginPlaceStructure('furnace')} style={{ padding: '6px 10px', cursor: 'pointer' }}>
+                Furnace
+              </button>
+              <button onClick={() => onBeginPlaceStructure('wall')} style={{ padding: '6px 10px', cursor: 'pointer' }}>
+                Wall
+              </button>
+              <button onClick={() => onBeginPlaceStructure('bone_wall')} style={{ padding: '6px 10px', cursor: 'pointer' }}>
+                Bone Wall
+              </button>
+              <button onClick={() => onBeginPlaceStructure('spike_trap')} style={{ padding: '6px 10px', cursor: 'pointer' }}>
+                Spike Trap
+              </button>
+              <button onClick={() => onBeginPlaceStructure('dimensional_beacon')} style={{ padding: '6px 10px', cursor: 'pointer' }}>
+                Beacon
               </button>
             </div>
           )}

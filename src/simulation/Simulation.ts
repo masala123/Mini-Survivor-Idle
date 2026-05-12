@@ -12,6 +12,7 @@ import { WeatherSystem } from '../systems/WeatherSystem';
 import { FarmingSystem } from '../systems/FarmingSystem';
 import { EcosystemSystem } from '../systems/EcosystemSystem';
 import { AnimalAISystem } from '../systems/AnimalAISystem';
+import { RefinerySystem } from '../systems/RefinerySystem';
 
 import { Structure } from '../entities/Structure';
 
@@ -51,6 +52,7 @@ export class Simulation {
   private farmingSystem: FarmingSystem;
   private ecosystemSystem: EcosystemSystem;
   private animalAISystem: AnimalAISystem;
+  private refinerySystem: RefinerySystem;
 
   constructor() {
     this.brain = new SurvivorBrain();
@@ -66,6 +68,7 @@ export class Simulation {
     this.farmingSystem = new FarmingSystem();
     this.ecosystemSystem = new EcosystemSystem();
     this.animalAISystem = new AnimalAISystem();
+    this.refinerySystem = new RefinerySystem();
     this.world = createWorld(1337, 40, 30, 20);
     this.resetDiscovery();
     this.resetPois();
@@ -110,6 +113,7 @@ export class Simulation {
     this.weather.tick();
     this.updateDiscovery();
     this.farmingSystem.tick(this.structures, this.weather.state);
+    this.refinerySystem.tick(this.structures);
     this.ecosystemSystem.tick(this.tickCount, this.animals, this.world, this.time.state.phase);
     this.animalAISystem.tick(this.animals, this.resources, this.survivors);
     this.handleAnimalSpawning();
@@ -121,8 +125,9 @@ export class Simulation {
         this.resourceSystem.tick(this.resources);
     }
 
-    this.combatSystem.tick(this.survivors, this.animals);
+    this.combatSystem.tick(this.survivors, this.animals, this.structures);
     this.animals = this.animals.filter(a => a.health > 0);
+    this.structures = this.structures.filter(s => s.health > 0);
     
     const hasCampfire = this.structures.some(s => s.type === 'campfire' && s.isComplete);
     this.moraleSystem.tick(this.survivors, this.time.state.phase === 'NIGHT', hasCampfire, this.weather.state);

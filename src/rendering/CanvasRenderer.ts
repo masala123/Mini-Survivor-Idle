@@ -99,8 +99,16 @@ export class CanvasRenderer {
       if (struct.type === 'campfire') this.ctx.fillStyle = '#ff5722';
       else if (struct.type === 'workbench') this.ctx.fillStyle = '#4e342e';
       else if (struct.type === 'chest') this.ctx.fillStyle = '#795548';
+      else if (struct.type === 'wood_shed') this.ctx.fillStyle = '#4e342e'; // Darker wood
+      else if (struct.type === 'stone_mason') this.ctx.fillStyle = '#424242'; // Dark stone
+      else if (struct.type === 'furnace') {
+          const isProcessing = (struct.inventory?.['fossil'] || 0) >= 1 && (struct.inventory?.['wood'] || 0) >= 1;
+          this.ctx.fillStyle = isProcessing ? '#f4511e' : '#546e7a'; // Orange if hot, Blue-grey if cold
+      }
       else if (struct.type === 'farm_plot') this.ctx.fillStyle = '#33691e';
       else if (struct.type === 'wall') this.ctx.fillStyle = '#3e2723';
+      else if (struct.type === 'bone_wall') this.ctx.fillStyle = '#f5f5f5';
+      else if (struct.type === 'spike_trap') this.ctx.fillStyle = struct.isTriggered ? '#212121' : '#b71c1c';
       else if (struct.type === 'dimensional_beacon') this.ctx.fillStyle = '#9c27b0';
       else this.ctx.fillStyle = '#444';
 
@@ -109,6 +117,25 @@ export class CanvasRenderer {
       }
 
       this.ctx.fillRect(struct.x + 190, struct.y + 190, 20, 20);
+
+      // Structure Health Bar (only for relevant buildings)
+      if (struct.type === 'wall' || struct.type === 'bone_wall' || struct.type === 'spike_trap' || struct.type === 'wood_shed' || struct.type === 'stone_mason') {
+          this.ctx.fillStyle = '#ff0000';
+          this.ctx.fillRect(struct.x + 190, struct.y + 185, 20, 2);
+          this.ctx.fillStyle = '#ffffff';
+          this.ctx.fillRect(struct.x + 190, struct.y + 185, 20 * (struct.health / struct.maxHealth), 2);
+      }
+
+      // Process Progress Bar (Furnace)
+      if (struct.type === 'furnace' && struct.isComplete && typeof struct.processTimer === 'number') {
+          const isProcessing = (struct.inventory?.['fossil'] || 0) >= 1 && (struct.inventory?.['wood'] || 0) >= 1;
+          if (isProcessing) {
+              this.ctx.fillStyle = '#444';
+              this.ctx.fillRect(struct.x + 190, struct.y + 182, 20, 2);
+              this.ctx.fillStyle = '#ff9800'; // Processing orange
+              this.ctx.fillRect(struct.x + 190, struct.y + 182, 20 * (struct.processTimer / (struct.maxProcessTimer || 200)), 2);
+          }
+      }
       
       if (struct.type === 'campfire' && struct.isComplete) {
           // Flame effect

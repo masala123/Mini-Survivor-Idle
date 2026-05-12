@@ -40,4 +40,12 @@
 - Taming system (Food offering, commands)
 - Mounts & Utility (Riding, heavy lifting, base guarding)
 
+## MVP 6 - Advanced Base Building & Logistics
+
+- Advanced defenses (Spike Traps, Bone Walls)
+- Dedicated resource stockpiles (Wood Sheds, Stone Masons)
+- Logistics AI (Hauling and sorting items)
+- Automated processing (Refineries, Furnaces)
+
+
 

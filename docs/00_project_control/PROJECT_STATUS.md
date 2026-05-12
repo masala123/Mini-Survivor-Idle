@@ -54,11 +54,10 @@ Core survival simulation and the MVP 4 thematic features (dinosaurs, ancient rui
 - [x] Post-MVP Polish: `dimensional_beacon` end-game structure added, bridging exploration and resource gathering.
 - [x] Comprehensive test suite (39 tests passing).
 
-- [ ] Phase 9: MVP 5 - Ecosystem Depth & Taming
-  - [x] Entity & Ecosystem Refactor (Factions, Neutral Animals)
-  - [x] Animal AI (Herbivore grazing, pack hunting)
-  - [x] Taming Mechanics (TAME command, food offering)
-  - [x] Utility & Riding (Mounts, Guarding, Heavy Lifting)
+- [x] Phase 10: MVP 6 - Advanced Base Building & Logistics
+  - [x] Advanced Defenses (Spike Traps, Bone Walls)
+  - [x] Logistics & Sorting (Stockpiles, Hauling AI)
+  - [x] Automated Processing (Furnaces, Refineries)
 
 ### Accomplishments
 
@@ -88,8 +87,12 @@ Core survival simulation and the MVP 4 thematic features (dinosaurs, ancient rui
 - [x] MVP 5: Taming Mechanics implemented - Neutral dinosaurs can be tamed using food (vegetables/ferns).
 - [x] MVP 5: Tamed AI Support - Tamed animals follow survivors and defend the base from hostiles.
 - [x] MVP 5: Mounting & Riding - Survivors can now ride tamed dinosaurs for a 2x speed boost.
-- [x] MVP 5: `EcosystemSystem` implemented for natural daytime spawning.
-- [x] Comprehensive test suite (36 tests passing, 3 under maintenance).
+- [x] MVP 6: Advanced Defenses - Implemented `Bone Wall` (high HP) and `Spike Trap` (collidable damage).
+- [x] MVP 6: Logistics & Sorting - Added `Wood Shed` and `Stone Mason` specialized stockpiles.
+- [x] MVP 6: HAUL AI Task - Survivors automatically sort and move materials into dedicated storage.
+- [x] MVP 6: Automated Processing - Implemented `Stone Furnace` for processing Raw Fossils into `Refined Fossils`.
+- [x] MVP 6: Autonomous Refinery AI - Survivors manage furnace input/output logistics.
+- [x] Comprehensive test suite (39 tests passing).
 
 ### Documentation Coverage (Source of Truth)
 
@@ -102,13 +105,15 @@ Core survival simulation and the MVP 4 thematic features (dinosaurs, ancient rui
 | Combat | [07_combat_system.md](../02_design/07_combat_system.md) | Current ✅ |
 | Progression | [05_progression_system.md](../02_design/05_progression_system.md) | Current ✅ |
 | Taming | [taming_system.md](../02_design/taming_system.md) | Current ✅ |
-| Riding | [NEW] | Planned ⚪ |
+| Riding | [riding_system.md](../02_design/riding_system.md) | Current ✅ |
+| Advanced Base | [base_building_system.md](../02_design/08_base_building_system.md) | Update Needed 🟡 |
+| Automated Processing | [refinery_system.md](../02_design/refinery_system.md) | Current ✅ |
 
-### Next Steps (MVP 5)
+### Next Steps (Post-MVP 6)
 
-- Finalize Riding System design doc.
-- Polish visual feedback for mounting.
-- Prepare for final release of MVP 5.
+- Finalize the Victory Condition (Dimensional Portal).
+- Implement Hazard Biomes (Volcanic Heat).
+- General balancing and UX polish.
 
 ### Known Blockers
 

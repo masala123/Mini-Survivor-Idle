@@ -23,6 +23,7 @@ export interface Survivor {
     morale: number;
     maxMorale: number;
     attackPower: number;
+    inventoryCapacity: number;
   };
   inventory: Record<string, number>;
   equippedTool: EquippedTool | null;
@@ -44,11 +45,13 @@ export type TaskType =
   | 'FLEE'
   | 'EQUIP'
   | 'STORE'
+  | 'HAUL'
   | 'RELAX';
 
 export interface Task {
   type: TaskType;
   targetId?: string;
+  sourceId?: string;
   recipeId?: string;
   structureId?: string;
   itemId?: string;
@@ -77,6 +80,7 @@ export const createSurvivor = (id: string, x: number, y: number, personality?: P
     morale: 100,
     maxMorale: 100,
     attackPower: 5,
+    inventoryCapacity: 10,
   },
   inventory: {},
   equippedTool: null,
