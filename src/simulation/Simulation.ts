@@ -15,12 +15,12 @@ import { AnimalAISystem } from '../systems/AnimalAISystem';
 import { RefinerySystem } from '../systems/RefinerySystem';
 import { PowerSystem } from '../systems/PowerSystem';
 import { GovernanceSystem } from '../systems/GovernanceSystem';
+import { ScenarioId, ScenarioSystem } from '../systems/ScenarioSystem';
 
 import { Structure } from '../entities/Structure';
 
-import { Animal } from '../entities/Animal';
+import { Animal, createAnimal } from '../entities/Animal';
 import { CombatSystem } from '../systems/CombatSystem';
-import { itemData } from '../data/items';
 import { structureData } from '../data/structures';
 import { createStructure } from '../entities/Structure';
 import { isPlacementValid } from '../game/placement';
@@ -48,6 +48,7 @@ export class Simulation {
   public weather: WeatherSystem;
   public power: PowerSystem;
   public governance: GovernanceSystem;
+  public scenario: ScenarioSystem;
   public isGameOver: boolean = false;
   public isVictory: boolean = false;
 
@@ -73,6 +74,7 @@ export class Simulation {
     this.weather = new WeatherSystem();
     this.power = new PowerSystem();
     this.governance = new GovernanceSystem();
+    this.scenario = new ScenarioSystem();
     this.farmingSystem = new FarmingSystem();
     this.ecosystemSystem = new EcosystemSystem();
     this.animalAISystem = new AnimalAISystem();
@@ -92,15 +94,35 @@ export class Simulation {
     this.discoveredPoiIds = new Set();
   }
 
-  public initMockData() {
+  public initMockData(scenarioId: ScenarioId = 'FIRST_CAMP', unlockedRecipeIds: Iterable<string> = []) {
+    this.tickCount = 0;
+    this.isGameOver = false;
+    this.isVictory = false;
     this.survivors = [];
     this.resources = [];
+    this.structures = [];
+    this.animals = [];
+    this.time = new TimeSystem();
+    this.weather = new WeatherSystem();
+    this.power = new PowerSystem();
+    this.governance = new GovernanceSystem();
+    this.interaction = new InteractionSystem();
+    this.progression = new ProgressionSystem();
+    for (const recipeId of unlockedRecipeIds) {
+      this.progression.unlockRecipe(recipeId);
+    }
     this.survivors.push(createSurvivor('survivor_1', 0, 0, { bravery: 0.7, sociability: 0.6, neuroticism: 0.4 }));
     this.survivors.push(createSurvivor('survivor_2', 30, 30, { bravery: 0.4, sociability: 0.8, neuroticism: 0.6 }));
     this.world = createWorld(1337, 40, 30, 20);
     this.resetDiscovery();
     this.resetPois();
     this.resources.push(...spawnInitialResources(this.world, 4));
+    this.startScenario(scenarioId);
+  }
+
+  public startScenario(scenarioId: ScenarioId) {
+    this.scenario.start(scenarioId);
+    this.applyScenarioStartingConditions(scenarioId);
   }
 
   public tick() {
@@ -140,6 +162,16 @@ export class Simulation {
     
     const hasCampfire = this.structures.some(s => s.type === 'campfire' && s.isComplete);
     this.moraleSystem.tick(this.survivors, this.time.state.phase === 'NIGHT', hasCampfire, this.weather.state);
+    this.scenario.tick({
+      tickCount: this.tickCount,
+      time: this.time.state,
+      survivors: this.survivors,
+      structures: this.structures,
+      animals: this.animals,
+      weather: this.weather.state,
+      power: this.power.state,
+      progression: this.progression,
+    });
 
     // 2.5 Equipment Passive Effects
     this.handleEquipmentEffects();
@@ -433,6 +465,10 @@ export class Simulation {
         this.governance.setFocus(cmd.focus);
         break;
       }
+      case 'START_SCENARIO': {
+        this.startScenario(cmd.scenarioId);
+        break;
+      }
       case 'DISMOUNT_ANIMAL': {
         const survivor = this.survivors.find(s => s.id === cmd.survivorId);
         if (!survivor || !survivor.mountedAnimalId) break;
@@ -443,6 +479,62 @@ export class Simulation {
         survivor.debugState = 'Player: Dismounted';
         break;
       }
+    }
+  }
+
+  private applyScenarioStartingConditions(scenarioId: ScenarioId) {
+    const leadSurvivor = this.survivors[0];
+    if (!leadSurvivor) return;
+
+    if (scenarioId === 'FIRST_CAMP') {
+      leadSurvivor.inventory['wood'] = Math.max(leadSurvivor.inventory['wood'] || 0, 3);
+      leadSurvivor.debugState = 'Scenario: First Camp supplies ready';
+      return;
+    }
+
+    if (scenarioId === 'SURVIVE_HEATWAVE') {
+      this.time.state.day = 2;
+      this.time.state.phase = 'MORNING';
+      this.time.state.progress = 0.05;
+      this.weather.state.type = 'CLEAR';
+      this.weather.state.intensity = 1;
+      this.weather.state.duration = 500;
+
+      this.structures.push(createStructure('scenario_campfire', 'campfire', 0, 0, true));
+      for (const survivor of this.survivors) {
+        survivor.stats.hunger = Math.max(survivor.stats.hunger, 80);
+        survivor.inventory['berry'] = (survivor.inventory['berry'] || 0) + 2;
+        survivor.debugState = 'Scenario: Heatwave shelter ready';
+      }
+      return;
+    }
+
+    if (scenarioId === 'POWER_RELAY') {
+      this.time.state.phase = 'MORNING';
+      this.time.state.progress = 0.05;
+      this.weather.state.type = 'CLEAR';
+      this.weather.state.intensity = 0;
+      this.weather.state.duration = 500;
+      this.power.state.batteryLevel = 0;
+
+      leadSurvivor.inventory['ancient_tech'] = Math.max(leadSurvivor.inventory['ancient_tech'] || 0, 2);
+      leadSurvivor.inventory['refined_fossil'] = Math.max(leadSurvivor.inventory['refined_fossil'] || 0, 3);
+      leadSurvivor.inventory['stone'] = Math.max(leadSurvivor.inventory['stone'] || 0, 4);
+      leadSurvivor.debugState = 'Scenario: Power relay kit ready';
+      return;
+    }
+
+    if (scenarioId === 'TAMING_TRIAL') {
+      this.time.state.phase = 'AFTERNOON';
+      this.time.state.progress = 0.45;
+      this.weather.state.type = 'CLEAR';
+      this.weather.state.intensity = 0;
+      this.weather.state.duration = 500;
+
+      leadSurvivor.inventory['vegetable'] = Math.max(leadSurvivor.inventory['vegetable'] || 0, 1);
+      leadSurvivor.inventory['fern'] = Math.max(leadSurvivor.inventory['fern'] || 0, 1);
+      this.animals.push(createAnimal('scenario_triceratops', 'Triceratops', 'NEUTRAL', 20, 0, 80, 5));
+      leadSurvivor.debugState = 'Scenario: Taming food ready';
     }
   }
 }

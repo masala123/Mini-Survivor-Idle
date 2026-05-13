@@ -14,6 +14,7 @@ export interface Structure {
   isTriggered?: boolean;
   processTimer?: number;
   maxProcessTimer?: number;
+  isIrrigated?: boolean;
 }
 
 export const createStructure = (
@@ -45,7 +46,7 @@ export const createStructure = (
     struct.isTriggered = false;
   }
 
-  if (type === 'chest' || type === 'wood_shed' || type === 'stone_mason' || type === 'furnace') {
+  if (type === 'chest' || type === 'wood_shed' || type === 'stone_mason' || type === 'furnace' || type === 'electric_smelter' || type === 'coal_generator') {
     struct.inventory = {};
     if (type === 'wood_shed' || type === 'stone_mason') {
         struct.health = 200;
@@ -53,7 +54,7 @@ export const createStructure = (
     }
   }
 
-  if (type === 'furnace') {
+  if (type === 'furnace' || type === 'electric_smelter') {
     struct.processTimer = 0;
     struct.maxProcessTimer = 200; // Ticks to process
   }

@@ -9,6 +9,21 @@
 - **Power System (MVP 7)**: Implemented electricity simulation with Solar Panels, Coal Generators, and Battery Banks. Added powered Electric Smelters (2x speed).
 - **Advanced Farming (MVP 7)**: Added Water Pumps and irrigation logic. Irrigated farm plots grow 2x faster.
 - **Colony Governance (MVP 7)**: Added global colony priorities (Survival, Expansion, Logistics, Exploration) that shift AI decision-making for all survivors.
+- **Scenario System**: Added a scenario tracker with objective progress, default "First Camp Protocol", and selectable "Survive the Heatwave" challenge that applies daytime heat stress.
+- **Scenario Outcomes**: Added one-shot completion rewards, failure morale penalties, and HUD outcome messages for scenarios.
+- **Power Relay Scenario**: Added a power infrastructure mission requiring a Solar Panel, Battery Bank, and stored energy, plus HUD buttons for power structures.
+- **Scenario Starting Conditions**: Scenario selection now starts a fresh run seeded with mission-specific supplies, shelter, weather, and power-building materials.
+- **Scenario Score Summary**: Completed and failed scenarios now calculate a score/rating and show objective and survivor counts in the HUD.
+- **Score-Driven Unlocks**: Strong scenario ratings now unlock recipes via the existing Progression System (`craft_axe`, `craft_crystal_spear`, `craft_bone_club`).
+- **Scenario Chains**: Later scenario buttons now unlock from campaign recipe progress and fresh scenario runs preserve earned recipe unlocks.
+- **Score History**: Recent completed/failed scenario scores are retained across fresh scenario starts and shown in the HUD.
+- **Campaign Persistence**: Campaign recipe unlocks and recent score history are saved to browser localStorage and restored on reload.
+- **Campaign Reset**: Added a HUD control to clear campaign unlocks/history from localStorage and restart First Camp.
+- **Campaign Goals**: Added campaign-level progress goals for scenario clears, recipe unlocks, high-rank runs, and cumulative score, surfaced in the HUD.
+- **Campaign Rank**: Added campaign meta-progression titles based on completed campaign goals, with banked score and best rating shown in the HUD.
+- **Taming Trial Scenario**: Added a fourth gated campaign mission that seeds a neutral dinosaur, provides taming food, and tracks tame/mount objectives.
+- **Scenario Deadlines**: Added mission-specific countdown timers, HUD time-left display, and deadline-based failure handling.
+- **Score Breakdown**: Scenario scores now expose completion, objective, survivor, and speed components, with the breakdown shown in the HUD.
 - **UI/UX Polish**: Compacted HUD layout and added visual indicators for power status and irrigation.
 
 ### Added (MVP 4 & 5)
@@ -29,6 +44,7 @@
 - **AI Task Stalls**: Fixed missing target IDs for `RELAX` and `BUILD` tasks that caused the AI to cancel tasks immediately.
 - **Survivor Duplication**: Fixed an issue where survivors appeared twice in the UI due to React Strict Mode double-initialization.
 - **Test Stability**: Isolated simulation tests to ensure deterministic results regardless of procedural world generation.
+- **Build Health**: Fixed TypeScript drift in advanced structures, irrigation state, and test helpers so lint, tests, and production builds pass together.
 
 ---
 

@@ -5,22 +5,24 @@ import { SurvivorBrain } from '../ai/SurvivorBrain';
 import { createSurvivor } from '../entities/Survivor';
 import { ProgressionSystem } from '../systems/ProgressionSystem';
 import { WeatherState } from '../systems/WeatherSystem';
+import { PowerSystem } from '../systems/PowerSystem';
 
 describe('Farming (MVP 3)', () => {
   it('should grow vegetables over time (weather-modified)', () => {
     const farming = new FarmingSystem();
     const plot = createStructure('farm_1', 'farm_plot', 0, 0, true);
     const structures = [plot];
+    const power = new PowerSystem();
 
     const clear: WeatherState = { type: 'CLEAR', intensity: 0, duration: 9999 };
-    for (let i = 0; i < 99; i++) farming.tick(structures, clear);
+    for (let i = 0; i < 99; i++) farming.tick(structures, clear, power);
     expect(plot.inventory?.['vegetable'] || 0).toBe(0);
 
-    farming.tick(structures, clear);
+    farming.tick(structures, clear, power);
     expect(plot.inventory?.['vegetable'] || 0).toBe(1);
 
     const rain: WeatherState = { type: 'RAIN', intensity: 1, duration: 9999 };
-    for (let i = 0; i < 58; i++) farming.tick(structures, rain);
+    for (let i = 0; i < 58; i++) farming.tick(structures, rain, power);
     expect(plot.inventory?.['vegetable'] || 0).toBe(2);
   });
 

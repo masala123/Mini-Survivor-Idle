@@ -2,7 +2,7 @@ export interface StructureData {
   id: string;
   name: string;
   ingredients: { itemId: string; amount: number }[];
-  type: 'UTILITY' | 'STORAGE' | 'DEFENSE';
+  type: 'UTILITY' | 'STORAGE' | 'DEFENSE' | 'PRODUCTION';
 }
 
 export const structureData: Record<string, StructureData> = {

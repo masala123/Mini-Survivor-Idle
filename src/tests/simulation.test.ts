@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Simulation } from '../simulation/Simulation';
 import { createStructure } from '../entities/Structure';
-import { resourceToItemMap } from '../entities/ResourceNode';
+import { ResourceNode, resourceToItemMap } from '../entities/ResourceNode';
+import { createAnimal } from '../entities/Animal';
 
 describe('Simulation MVP Tests', () => {
   let sim: Simulation;
@@ -109,7 +110,7 @@ describe('Simulation MVP Tests', () => {
       const animal = sim.animals[0];
       if (!animal) {
         // Force a deterministic animal
-        sim.animals.push({ id: 'a1', type: 'shadow_raptor', faction: 'HOSTILE', x: 0, y: 0, health: 10, maxHealth: 10, attackPower: 10, targetId: null });
+        sim.animals.push(createAnimal('a1', 'shadow_raptor', 'HOSTILE', 0, 0, 10, 10));
       }
 
       const target = sim.animals[0];

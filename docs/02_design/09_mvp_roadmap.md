@@ -47,5 +47,23 @@
 - Logistics AI (Hauling and sorting items)
 - Automated processing (Refineries, Furnaces)
 
+## Post-MVP 7 - Scenario System
 
-
+- Tracked scenario objectives
+- First camp onboarding challenge
+- Heatwave survival challenge
+- Power relay infrastructure challenge
+- Taming trial challenge
+- HUD controls for switching active scenario
+- Scenario rewards and failure consequences
+- Mission-specific deadlines
+- Mission-specific starting conditions
+- End-of-run score summaries
+- Score component breakdowns
+- Score-driven recipe unlocks
+- Chained scenario availability
+- Recent score history
+- Local campaign persistence
+- Campaign reset control
+- Campaign goal checklist
+- Campaign rank summary

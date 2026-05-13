@@ -1,22 +1,71 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Simulation } from '../simulation/Simulation';
 import { CanvasRenderer } from '../rendering/CanvasRenderer';
 import { Hud } from '../ui/Hud';
 import { snapToGrid } from '../game/coords';
 import { isPlacementValid } from '../game/placement';
+import { createScenarioScoreRecord, ScenarioId, ScenarioScoreRecord } from '../systems/ScenarioSystem';
+import { clearCampaignState, loadCampaignState, saveCampaignState } from '../systems/CampaignSystem';
 
 export const App: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const simRef = useRef<Simulation>(new Simulation());
   const rendererRef = useRef<CanvasRenderer | null>(null);
+  const campaignUnlocksRef = useRef<Set<string>>(new Set());
+  const campaignHistoryRef = useRef<ScenarioScoreRecord[]>([]);
+  const runIdRef = useRef<number>(0);
+  const recordedRunIdsRef = useRef<Set<number>>(new Set());
   const [, setTick] = useState(0);
+  const [campaignUnlockedRecipeIds, setCampaignUnlockedRecipeIds] = useState<string[]>([]);
+  const [campaignHistory, setCampaignHistory] = useState<ScenarioScoreRecord[]>([]);
   const [selectedSurvivorId, setSelectedSurvivorId] = useState<string>('survivor_1');
   const [placementStructureId, setPlacementStructureId] = useState<string | null>(null);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<ScenarioId>('FIRST_CAMP');
   const gridSize = 10;
 
+  const persistCampaignState = useCallback(() => {
+    saveCampaignState(window.localStorage, {
+      unlockedRecipeIds: [...campaignUnlocksRef.current],
+      history: campaignHistoryRef.current,
+    });
+  }, []);
+
+  const syncCampaignState = useCallback(() => {
+    let unlocksChanged = false;
+    let historyChanged = false;
+    for (const recipeId of simRef.current.progression.unlockedRecipes) {
+      if (!campaignUnlocksRef.current.has(recipeId)) {
+        campaignUnlocksRef.current.add(recipeId);
+        unlocksChanged = true;
+      }
+    }
+
+    if (unlocksChanged) {
+      setCampaignUnlockedRecipeIds([...campaignUnlocksRef.current].sort());
+    }
+
+    const record = createScenarioScoreRecord(simRef.current.scenario.state);
+    if (record && !recordedRunIdsRef.current.has(runIdRef.current)) {
+      recordedRunIdsRef.current.add(runIdRef.current);
+      campaignHistoryRef.current = [...campaignHistoryRef.current, record].slice(-5);
+      setCampaignHistory(campaignHistoryRef.current);
+      historyChanged = true;
+    }
+
+    if (unlocksChanged || historyChanged) {
+      persistCampaignState();
+    }
+  }, [persistCampaignState]);
+
   useEffect(() => {
+    const storedCampaign = loadCampaignState(window.localStorage);
+    campaignUnlocksRef.current = new Set(storedCampaign.unlockedRecipeIds);
+    campaignHistoryRef.current = storedCampaign.history;
+    setCampaignUnlockedRecipeIds(storedCampaign.unlockedRecipeIds);
+    setCampaignHistory(storedCampaign.history);
+
     // Initialize Simulation
-    simRef.current.initMockData();
+    simRef.current.initMockData('FIRST_CAMP', campaignUnlocksRef.current);
 
     // Initialize Renderer
     if (canvasRef.current) {
@@ -26,6 +75,7 @@ export const App: React.FC = () => {
     // Game Loop
     const interval = setInterval(() => {
       simRef.current.tick();
+      syncCampaignState();
       setTick(t => t + 1); // Trigger React re-render for HUD
     }, 100); // 10 ticks per second
 
@@ -41,7 +91,7 @@ export const App: React.FC = () => {
       clearInterval(interval);
       cancelAnimationFrame(animFrame);
     };
-  }, []);
+  }, [syncCampaignState]);
 
   const handleCanvasClick = (evt: React.MouseEvent<HTMLCanvasElement>) => {
     if (simRef.current.isGameOver) return;
@@ -125,16 +175,6 @@ export const App: React.FC = () => {
     });
   };
 
-  const handleAssist = (resourceId: string) => {
-    if (resourceId && !simRef.current.isGameOver) {
-      simRef.current.interaction.pushCommand({
-        type: 'ASSIST_GATHER',
-        targetId: resourceId,
-        survivorId: selectedSurvivorId
-      });
-    }
-  };
-
   const handleUnlock = (recipeId: string) => {
     if (!simRef.current.isGameOver) {
       simRef.current.interaction.pushCommand({
@@ -146,7 +186,39 @@ export const App: React.FC = () => {
 
   const handleReset = () => {
     const newSim = new Simulation();
-    newSim.initMockData();
+    newSim.initMockData(selectedScenarioId, campaignUnlocksRef.current);
+    runIdRef.current++;
+    simRef.current = newSim;
+    setSelectedSurvivorId(newSim.survivors[0]?.id ?? 'survivor_1');
+    setPlacementStructureId(null);
+    rendererRef.current?.setPlacementPreview(null);
+    setTick(t => t + 1);
+  };
+
+  const handleStartScenario = (scenarioId: ScenarioId) => {
+    setSelectedScenarioId(scenarioId);
+    const newSim = new Simulation();
+    newSim.initMockData(scenarioId, campaignUnlocksRef.current);
+    runIdRef.current++;
+    simRef.current = newSim;
+    setSelectedSurvivorId(newSim.survivors[0]?.id ?? 'survivor_1');
+    setPlacementStructureId(null);
+    rendererRef.current?.setPlacementPreview(null);
+    setTick(t => t + 1);
+  };
+
+  const handleClearCampaign = () => {
+    clearCampaignState(window.localStorage);
+    campaignUnlocksRef.current = new Set();
+    campaignHistoryRef.current = [];
+    recordedRunIdsRef.current = new Set();
+    runIdRef.current++;
+    setCampaignUnlockedRecipeIds([]);
+    setCampaignHistory([]);
+    setSelectedScenarioId('FIRST_CAMP');
+
+    const newSim = new Simulation();
+    newSim.initMockData('FIRST_CAMP');
     simRef.current = newSim;
     setSelectedSurvivorId(newSim.survivors[0]?.id ?? 'survivor_1');
     setPlacementStructureId(null);
@@ -176,7 +248,6 @@ export const App: React.FC = () => {
         />
         <Hud
             sim={simRef.current}
-            onAssist={handleAssist}
             onUnlock={handleUnlock}
             selectedSurvivorId={selectedSurvivorId}
             onSelectSurvivor={setSelectedSurvivorId}
@@ -184,6 +255,10 @@ export const App: React.FC = () => {
             onEmergencyHeal={survivorId => simRef.current.interaction.pushCommand({ type: 'EMERGENCY_HEAL', survivorId })}
             onGiveItem={(survivorId, itemId) => simRef.current.interaction.pushCommand({ type: 'GIVE_ITEM', survivorId, itemId })}
             onSetRole={(survivorId, role) => simRef.current.interaction.pushCommand({ type: 'SET_ROLE', survivorId, role })}
+            onStartScenario={handleStartScenario}
+            onClearCampaign={handleClearCampaign}
+            campaignUnlockedRecipeIds={campaignUnlockedRecipeIds}
+            campaignHistory={campaignHistory}
             placementStructureId={placementStructureId}
             onBeginPlaceStructure={structureId => {
             setPlacementStructureId(structureId);

@@ -1,6 +1,6 @@
 # Project Status - Idle Survivor Sandbox
 
-## Current Status: MVP 6 Complete ✅ / Post-MVP Polish In-Progress 🟡
+## Current Status: MVP 7 Complete / Post-MVP Scenario Campaign In-Progress
 
 Core survival simulation and the MVP 6 thematic features (dinosaurs, base automation, logistics, victory condition) are implemented and validated by tests.
 
@@ -55,7 +55,22 @@ Core survival simulation and the MVP 6 thematic features (dinosaurs, base automa
 - [x] MVP 7: Power System - Implemented energy generation (Solar, Coal), storage (Batteries), and powered machines (Electric Smelter).
 - [x] MVP 7: Advanced Farming - Added Water Pumps and Irrigation bonuses for farm plots.
 - [x] MVP 7: Colony Governance - Implemented global priorities (Survival, Expansion, Logistics, Exploration) that shift AI behavior colony-wide.
-- [x] Comprehensive test suite (39 tests passing).
+- [x] Post-MVP Scenario System: Added tracked challenge objectives with First Camp and Heatwave scenarios selectable from the HUD.
+- [x] Post-MVP Scenario Outcomes: Scenario completion now grants rewards, failures apply morale penalties, and HUD shows outcome messages.
+- [x] Post-MVP Scenario Expansion: Added Power Relay mission and HUD construction controls for power infrastructure.
+- [x] Post-MVP Scenario Setup: Scenario selection now starts a fresh mission run with scenario-specific supplies, weather, shelter, and power materials.
+- [x] Post-MVP Scenario Scoring: Completed and failed scenarios now produce score summaries with rating, objectives completed, survivors alive, and elapsed ticks.
+- [x] Post-MVP Score Unlocks: Strong scenario ratings now unlock recipes through the existing Progression System.
+- [x] Post-MVP Scenario Chains: Scenario buttons now gate later missions behind campaign recipe unlocks and carry unlocked recipes across fresh runs.
+- [x] Post-MVP Score History: Recent completed/failed scenario scores are retained across fresh scenario runs and displayed in the HUD.
+- [x] Post-MVP Campaign Persistence: Campaign unlocks and recent score history now persist through browser localStorage with validation.
+- [x] Post-MVP Campaign Reset: Added a HUD control to clear persisted campaign unlocks/history and restart the campaign.
+- [x] Post-MVP Campaign Goals: HUD now tracks campaign-level goals for scenario clears, recipe unlocks, high-rank runs, and banked score.
+- [x] Post-MVP Scenario Variety: Added Taming Trial as a fourth campaign scenario that seeds a neutral dinosaur and tracks taming/mounting objectives.
+- [x] Post-MVP Scenario Difficulty: Active scenarios now have mission-specific deadlines, HUD countdowns, and deadline failure tests.
+- [x] Post-MVP Campaign Rank: Campaign goals now roll up into a HUD rank with banked score and best rating.
+- [x] Post-MVP Score Transparency: Scenario scores now expose completion, objective, survivor, and speed components in the HUD.
+- [x] Comprehensive test suite (62 tests passing).
 
 ### Documentation Coverage (Source of Truth)
 
@@ -77,7 +92,7 @@ Core survival simulation and the MVP 6 thematic features (dinosaurs, base automa
 
 ### Next Steps (Post-MVP 7)
 
-- **Scenario System**: Add specific challenges or missions (e.g., "Survive the Heatwave").
+- **Scenario System**: Add richer scenario modifiers, rewards, and campaign meta-progression.
 - **Visual Polish**: Add more animations, particles, and sound effects.
 - **Save/Load System**: Implement persistent world state.
 - **Balance Pass**: Fine-tune resource rates and threat levels.

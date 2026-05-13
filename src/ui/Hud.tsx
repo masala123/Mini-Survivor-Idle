@@ -2,11 +2,13 @@ import React from 'react';
 import { Simulation } from '../simulation/Simulation';
 import { Minimap } from './Minimap';
 
-import { Survivor, SurvivorRole } from '../entities/Survivor';
+import { SurvivorRole } from '../entities/Survivor';
+import { ColonyFocus } from '../systems/GovernanceSystem';
+import { getCampaignGoals, getCampaignRank } from '../systems/CampaignSystem';
+import { isScenarioOptionUnlocked, ScenarioId, scenarioOptions, ScenarioScoreRecord } from '../systems/ScenarioSystem';
 
 interface HudProps {
   sim: Simulation;
-  onAssist: (resourceId: string) => void;
   onUnlock: (recipeId: string) => void;
   selectedSurvivorId: string;
   onSelectSurvivor: (survivorId: string) => void;
@@ -14,6 +16,10 @@ interface HudProps {
   onEmergencyHeal: (survivorId: string) => void;
   onGiveItem: (survivorId: string, itemId: string) => void;
   onSetRole: (survivorId: string, role: SurvivorRole) => void;
+  onStartScenario: (scenarioId: ScenarioId) => void;
+  onClearCampaign: () => void;
+  campaignUnlockedRecipeIds: string[];
+  campaignHistory: ScenarioScoreRecord[];
   placementStructureId: string | null;
   onBeginPlaceStructure: (structureId: string) => void;
   onCancelPlaceStructure: () => void;
@@ -23,7 +29,6 @@ interface HudProps {
 
 export const Hud: React.FC<HudProps> = ({
   sim,
-  onAssist,
   onUnlock,
   selectedSurvivorId,
   onSelectSurvivor,
@@ -31,6 +36,10 @@ export const Hud: React.FC<HudProps> = ({
   onEmergencyHeal,
   onGiveItem,
   onSetRole,
+  onStartScenario,
+  onClearCampaign,
+  campaignUnlockedRecipeIds,
+  campaignHistory,
   placementStructureId,
   onBeginPlaceStructure,
   onCancelPlaceStructure,
@@ -43,6 +52,9 @@ export const Hud: React.FC<HudProps> = ({
 
   const axeUnlocked = sim.progression.isRecipeUnlocked('craft_axe');
   const selected = survivors.find(s => s.id === selectedSurvivorId) ?? survivors[0];
+  const campaignState = { unlockedRecipeIds: campaignUnlockedRecipeIds, history: campaignHistory };
+  const campaignGoals = getCampaignGoals(campaignState);
+  const campaignRank = getCampaignRank(campaignState);
 
   return (
     <div style={{
@@ -97,6 +109,125 @@ export const Hud: React.FC<HudProps> = ({
         <div style={{ color: '#aaa', textAlign: 'right' }}>
             Stored: {Math.floor(sim.power.state.batteryLevel)} / {sim.power.state.maxBatteryCapacity}Wh
         </div>
+      </div>
+
+      {/* 1.6 Scenario */}
+      <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '6px', fontSize: '9px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div style={{ fontWeight: 'bold', color: '#ff9800', display: 'flex', justifyContent: 'space-between' }}>
+          <span>SCENARIO</span>
+          <span>{sim.scenario.state.status}</span>
+        </div>
+        <div style={{ color: '#ddd', fontSize: '10px' }}>{sim.scenario.state.name}</div>
+        {sim.scenario.state.status === 'ACTIVE' && sim.scenario.state.deadlineTicks !== null && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ffcc00', fontSize: '8px' }}>
+            <span>TIME LEFT</span>
+            <span>{Math.max(0, sim.scenario.state.deadlineTicks - sim.scenario.state.elapsedTicks)} ticks</span>
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          {sim.scenario.state.objectives.map(objective => (
+            <div key={objective.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '6px', color: objective.completed ? '#44ff44' : '#ccc' }}>
+              <span>{objective.label}</span>
+              <span>{objective.completed ? 'OK' : `${objective.current}/${objective.target}`}</span>
+            </div>
+          ))}
+        </div>
+        {sim.scenario.state.outcomeMessage && (
+          <div style={{ color: sim.scenario.state.status === 'FAILED' ? '#ff7777' : '#9cff9c', fontSize: '9px' }}>
+            {sim.scenario.state.outcomeMessage}
+          </div>
+        )}
+        {sim.scenario.state.score && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px', color: '#ddd', fontSize: '9px' }}>
+            <span>Score</span>
+            <span style={{ textAlign: 'right', color: '#ffcc00' }}>
+              {sim.scenario.state.score.total} / {sim.scenario.state.score.rating}
+            </span>
+            <span>Objectives</span>
+            <span style={{ textAlign: 'right' }}>
+              {sim.scenario.state.score.objectivesComplete}/{sim.scenario.state.score.objectivesTotal}
+            </span>
+            <span>Alive</span>
+            <span style={{ textAlign: 'right' }}>{sim.scenario.state.score.survivorsAlive}</span>
+            <span>Breakdown</span>
+            <span style={{ textAlign: 'right' }}>
+              {sim.scenario.state.score.completionBonus}+{sim.scenario.state.score.objectivePoints}+{sim.scenario.state.score.survivorPoints}+{sim.scenario.state.score.speedBonus}
+            </span>
+            {sim.scenario.state.score.unlockedRecipes.length > 0 && (
+              <>
+                <span>Unlocks</span>
+                <span style={{ textAlign: 'right', color: '#9cff9c' }}>
+                  {sim.scenario.state.score.unlockedRecipes.length}
+                </span>
+              </>
+            )}
+          </div>
+        )}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '3px', pointerEvents: 'auto' }}>
+          {scenarioOptions.map(option => (
+            (() => {
+              const availableRecipes = new Set([...campaignUnlockedRecipeIds, ...sim.progression.unlockedRecipes]);
+              const unlocked = isScenarioOptionUnlocked(option, availableRecipes);
+              return (
+                <button
+                  key={option.id}
+                  onClick={() => unlocked && onStartScenario(option.id)}
+                  disabled={!unlocked}
+                  title={!unlocked && option.requiredRecipeId ? `Requires ${option.requiredRecipeId}` : option.label}
+                  style={{
+                    padding: '3px',
+                    fontSize: '8px',
+                    cursor: unlocked ? 'pointer' : 'not-allowed',
+                    backgroundColor: sim.scenario.state.id === option.id ? '#ff9800' : undefined,
+                    color: sim.scenario.state.id === option.id ? 'black' : undefined,
+                    opacity: unlocked ? 1 : 0.45,
+                  }}
+                >
+                  {option.label}
+                </button>
+              );
+            })()
+          ))}
+        </div>
+        <div style={{ borderTop: '1px solid #333', paddingTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <div style={{ color: '#aaa', fontSize: '8px' }}>CAMPAIGN</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px', color: '#ffcc00', fontSize: '8px' }}>
+            <span>{campaignRank.title}</span>
+            <span>{campaignRank.completedGoals}/{campaignRank.totalGoals}</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px', color: '#ddd', fontSize: '8px', marginBottom: '2px' }}>
+            <span>Score bank</span>
+            <span>{campaignRank.totalScore}{campaignRank.bestRating ? ` / ${campaignRank.bestRating}` : ''}</span>
+          </div>
+          <div style={{ color: '#aaa', fontSize: '8px' }}>GOALS</div>
+          {campaignGoals.map(goal => (
+            <div key={goal.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px', color: goal.completed ? '#9cff9c' : '#ddd', fontSize: '8px' }}>
+              <span>{goal.label}</span>
+              <span>{goal.completed ? 'OK' : `${goal.current}/${goal.target}`}</span>
+            </div>
+          ))}
+        </div>
+        {campaignHistory.length > 0 && (
+          <div style={{ borderTop: '1px solid #333', paddingTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <div style={{ color: '#aaa', fontSize: '8px' }}>RECENT RUNS</div>
+            {campaignHistory.slice(-3).map((record, index) => (
+              <div key={`${record.scenarioId}-${record.elapsedTicks}-${index}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px', color: '#ddd', fontSize: '8px' }}>
+                <span>{record.scenarioName}</span>
+                <span style={{ color: record.status === 'COMPLETE' ? '#9cff9c' : '#ff7777' }}>
+                  {record.total}/{record.rating}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {(campaignUnlockedRecipeIds.length > 0 || campaignHistory.length > 0) && (
+          <button
+            onClick={onClearCampaign}
+            style={{ padding: '3px', fontSize: '8px', cursor: 'pointer', pointerEvents: 'auto' }}
+          >
+            Clear Campaign
+          </button>
+        )}
       </div>
 
       {/* 1.7 Colony Governance */}
@@ -246,6 +377,13 @@ export const Hud: React.FC<HudProps> = ({
           <button onClick={() => onBeginPlaceStructure('wall')} style={{ padding: '3px', fontSize: '8px', cursor: 'pointer' }}>Wall</button>
           <button onClick={() => onBeginPlaceStructure('bone_wall')} style={{ padding: '3px', fontSize: '8px', cursor: 'pointer' }}>B-Wall</button>
           <button onClick={() => onBeginPlaceStructure('spike_trap')} style={{ padding: '3px', fontSize: '8px', cursor: 'pointer' }}>Trap</button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px' }}>
+          <button onClick={() => onBeginPlaceStructure('solar_panel')} style={{ padding: '3px', fontSize: '8px', cursor: 'pointer' }}>Solar</button>
+          <button onClick={() => onBeginPlaceStructure('battery_bank')} style={{ padding: '3px', fontSize: '8px', cursor: 'pointer' }}>Battery</button>
+          <button onClick={() => onBeginPlaceStructure('electric_smelter')} style={{ padding: '3px', fontSize: '8px', cursor: 'pointer' }}>E-Smelter</button>
+          <button onClick={() => onBeginPlaceStructure('water_pump')} style={{ padding: '3px', fontSize: '8px', cursor: 'pointer' }}>Pump</button>
         </div>
 
         <div style={{ borderTop: '1px solid #333', marginTop: '2px', paddingTop: '4px', display: 'flex', flexDirection: 'column', gap: '3px' }}>

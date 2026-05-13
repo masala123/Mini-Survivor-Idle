@@ -1,5 +1,6 @@
 import { SurvivorRole } from '../entities/Survivor';
 import { ColonyFocus } from './GovernanceSystem';
+import { ScenarioId } from './ScenarioSystem';
 
 export type PlayerCommand =
   | { type: 'ASSIST_GATHER'; targetId: string; survivorId?: string }
@@ -13,7 +14,8 @@ export type PlayerCommand =
   | { type: 'MOUNT_ANIMAL'; targetId: string; survivorId: string }
   | { type: 'DISMOUNT_ANIMAL'; survivorId: string }
   | { type: 'SET_ROLE'; survivorId: string; role: SurvivorRole }
-  | { type: 'SET_GOVERNANCE_FOCUS'; focus: ColonyFocus };
+  | { type: 'SET_GOVERNANCE_FOCUS'; focus: ColonyFocus }
+  | { type: 'START_SCENARIO'; scenarioId: ScenarioId };
 
 export class InteractionSystem {
   private commandQueue: PlayerCommand[] = [];
