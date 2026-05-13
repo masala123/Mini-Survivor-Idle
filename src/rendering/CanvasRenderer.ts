@@ -109,6 +109,22 @@ export class CanvasRenderer {
       else if (struct.type === 'wall') this.ctx.fillStyle = '#3e2723';
       else if (struct.type === 'bone_wall') this.ctx.fillStyle = '#f5f5f5';
       else if (struct.type === 'spike_trap') this.ctx.fillStyle = struct.isTriggered ? '#212121' : '#b71c1c';
+      else if (struct.type === 'solar_panel') this.ctx.fillStyle = '#01579b'; // Dark blue
+      else if (struct.type === 'coal_generator') {
+          const isFueled = (struct.inventory?.['wood'] || 0) > 0 || (struct.inventory?.['refined_fossil'] || 0) > 0;
+          this.ctx.fillStyle = isFueled ? '#ef6c00' : '#455a64'; // Orange fire vs Cold steel
+      }
+      else if (struct.type === 'battery_bank') {
+          this.ctx.fillStyle = '#fdd835'; // Battery yellow
+      }
+      else if (struct.type === 'electric_smelter') {
+          const isPowered = sim.power.isPowered(15);
+          this.ctx.fillStyle = isPowered ? '#ffeb3b' : '#37474f'; // Bright yellow vs dark steel
+      }
+      else if (struct.type === 'water_pump') {
+          const isPowered = sim.power.isPowered(10);
+          this.ctx.fillStyle = isPowered ? '#03a9f4' : '#455a64'; // Light blue vs steel
+      }
       else if (struct.type === 'dimensional_beacon') this.ctx.fillStyle = '#9c27b0';
       else this.ctx.fillStyle = '#444';
 
@@ -116,18 +132,75 @@ export class CanvasRenderer {
         this.ctx.globalAlpha = 0.4;
       }
 
-      this.ctx.fillRect(struct.x + 190, struct.y + 190, 20, 20);
+      // Special animation for Water Pump
+      let drawWidth = 20;
+      let drawHeight = 20;
+      if (struct.type === 'water_pump' && struct.isComplete && sim.power.isPowered(10)) {
+          const pulse = Math.sin(Date.now() / 150) * 2;
+          drawWidth += pulse;
+          drawHeight += pulse;
+      }
+
+      this.ctx.fillRect(struct.x + 200 - drawWidth / 2, struct.y + 200 - drawHeight / 2, drawWidth, drawHeight);
+
+      // --- POWER & FARMING VISUALS ---
+      if (struct.isComplete) {
+          if (struct.type === 'farm_plot' && struct.isIrrigated) {
+              // Irrigation droplet
+              this.ctx.fillStyle = '#2196f3';
+              this.ctx.beginPath();
+              this.ctx.arc(struct.x + 200 + 6, struct.y + 195, 3, 0, Math.PI * 2);
+              this.ctx.fill();
+          }
+          if (struct.type === 'solar_panel') {
+              const isDay = sim.time.state.phase === 'MORNING' || sim.time.state.phase === 'AFTERNOON';
+              const isSunny = sim.weather.state.type === 'CLEAR';
+              if (isDay && isSunny) {
+                  // Shining effect
+                  this.ctx.strokeStyle = '#81d4fa';
+                  this.ctx.lineWidth = 1;
+                  this.ctx.strokeRect(struct.x + 188, struct.y + 188, 24, 24);
+              }
+          } else if (struct.type === 'coal_generator') {
+              const isFueled = (struct.inventory?.['wood'] || 0) > 0 || (struct.inventory?.['refined_fossil'] || 0) > 0;
+              if (isFueled) {
+                  // Spark effect
+                  this.ctx.fillStyle = '#ffff00';
+                  this.ctx.beginPath();
+                  this.ctx.arc(struct.x + 200 + (Math.random() - 0.5) * 10, struct.y + 200 + (Math.random() - 0.5) * 10, 2, 0, Math.PI * 2);
+                  this.ctx.fill();
+              }
+          } else if (struct.type === 'electric_smelter') {
+              const isPowered = sim.power.isPowered(15);
+              const isProcessing = (struct.inventory?.['fossil'] || 0) >= 1 && (struct.inventory?.['wood'] || 0) >= 1;
+              if (isPowered && isProcessing) {
+                  // Glowing aura
+                  this.ctx.shadowBlur = 10;
+                  this.ctx.shadowColor = '#ffff00';
+                  this.ctx.strokeStyle = '#ffff00';
+                  this.ctx.strokeRect(struct.x + 190, struct.y + 190, 20, 20);
+                  this.ctx.shadowBlur = 0;
+              }
+          } else if (struct.type === 'battery_bank') {
+              // Charge level indicator
+              this.ctx.fillStyle = '#000';
+              this.ctx.fillRect(struct.x + 192, struct.y + 192, 16, 4);
+              this.ctx.fillStyle = '#4caf50';
+              const chargeRatio = sim.power.state.batteryLevel / sim.power.state.maxBatteryCapacity;
+              this.ctx.fillRect(struct.x + 192, struct.y + 192, 16 * chargeRatio, 4);
+          }
+      }
 
       // Structure Health Bar (only for relevant buildings)
-      if (struct.type === 'wall' || struct.type === 'bone_wall' || struct.type === 'spike_trap' || struct.type === 'wood_shed' || struct.type === 'stone_mason') {
+      if (struct.type === 'wall' || struct.type === 'bone_wall' || struct.type === 'spike_trap' || struct.type === 'wood_shed' || struct.type === 'stone_mason' || struct.type === 'coal_generator' || struct.type === 'electric_smelter') {
           this.ctx.fillStyle = '#ff0000';
           this.ctx.fillRect(struct.x + 190, struct.y + 185, 20, 2);
           this.ctx.fillStyle = '#ffffff';
           this.ctx.fillRect(struct.x + 190, struct.y + 185, 20 * (struct.health / struct.maxHealth), 2);
       }
 
-      // Process Progress Bar (Furnace)
-      if (struct.type === 'furnace' && struct.isComplete && typeof struct.processTimer === 'number') {
+      // Process Progress Bar (Furnace & Smelter)
+      if ((struct.type === 'furnace' || struct.type === 'electric_smelter') && struct.isComplete && typeof struct.processTimer === 'number') {
           const isProcessing = (struct.inventory?.['fossil'] || 0) >= 1 && (struct.inventory?.['wood'] || 0) >= 1;
           if (isProcessing) {
               this.ctx.fillStyle = '#444';
@@ -292,6 +365,8 @@ export class CanvasRenderer {
         return '#2b3b2f';
       case 'DESERT':
         return '#7a6b3f';
+      case 'VOLCANIC':
+        return '#4a1515';
     }
   }
 

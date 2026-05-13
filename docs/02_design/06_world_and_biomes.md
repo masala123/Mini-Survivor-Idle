@@ -2,33 +2,35 @@
 
 ## World Structure
 
-- Procedural generation
-- Deterministic seedable biome grid (MVP 4 groundwork)
-- Initial resources spawn based on biome (MVP 4 groundwork)
-- Resource nodes
-- Monster spawning
-- Day/night cycle
-- Biome distribution
+- **Procedural Generation**: Grid-based world with deterministic seeding.
+- **Biome Grid**: Tile-based biomes affecting resource spawning and environmental hazards.
+- **Resource Nodes**: `BERRY_BUSH`, `TREE`, `STONE`, `FERN_BUSH`, `BONE_PILE`, `FOSSIL_DEPOSIT`, `ANCIENT_TECH_NODE`.
+- **Ecosystem**: Dynamic animal life with predator/prey relationships and player interaction.
+- **Day/Night Cycle**: Affects visibility, temperature, and animal behavior (Night monsters).
 
-## UI
+## UI & Exploration
 
-- A minimap can visualize biome tiles and entity positions (survivors/resources/structures/monsters).
-- Fog-of-war discovery can hide undiscovered tiles until survivors explore nearby.
-- Points of interest can be discovered via exploration and shown on the minimap.
-- Discovered POIs can grant one-time rewards (e.g., items or morale boosts).
-- Some POIs can spawn world changes (e.g., a bonfire site becomes a campfire structure).
+- **Minimap**: Visualizes discovered biome tiles and entity positions.
+- **Fog-of-War**: Tiles remain hidden until explored by a survivor (Scout task).
+- **Points of Interest (POIs)**: 
+  - `CRYSTAL_RUIN`: Grant ancient materials or tech.
+  - `DIMENSIONAL_ANOMALY`: End-game resource nodes.
+  - `RUIN` / `STONE_RING`: Morale boosts or history.
+  - `BONFIRE_SITE`: Spawns a pre-built campfire.
 
-## Example Biomes
+## Biomes & Hazards
 
-| Biome | Resources | Threat |
-|---|---|---|
-| Forest | Wood | Spiders |
-| Grassland | Food | Hounds |
-| Swamp | Rare materials | Tentacles |
-| Desert | Advanced resources | Heat |
+| Biome | Description | Resources | Hazard |
+|---|---|---|---|
+| **GRASSLAND** | Open plains | Berries, Ferns | Low |
+| **FOREST** | Dense trees | Wood, Ferns | Mid (Raptors) |
+| **SWAMP** | Murky wetlands | Ferns, Ancient Tech | Mid (Slow movement) |
+| **DESERT** | Dry sands | Bones, Fossils | Mid (Heat) |
+| **VOLCANIC** | Magma & Ash | Refined Fossils | **High (Heat Damage)** |
 
-## Biome Formula
+## Dinosaur Ecosystem (Animals)
 
-```text
-Reward + Danger
-```
+Animals belong to one of three factions:
+- **NEUTRAL**: Wander and graze (e.g., Triceratops, Ankylosaurus). Can be tamed.
+- **HOSTILE**: Hunt survivors and neutral dinosaurs (e.g., Compsognathus, Velociraptor, T-Rex).
+- **TAMED**: Follow survivors, defend the base, and can be mounted for transport.

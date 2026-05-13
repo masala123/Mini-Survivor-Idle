@@ -67,7 +67,7 @@ describe('Simulation MVP Tests', () => {
       survivor.stats.hunger = 80;
       survivor.scoutCooldown = 9999;
       
-      const resource = { id: 'test_berry_stock', type: 'BERRY_BUSH', x: 10, y: 10, amount: 5, maxAmount: 5, regrowRate: 100, regrowTimer: 0 } as any;
+      const resource = { id: 'test_berry_stock', type: 'BERRY_BUSH', x: 10, y: 10, amount: 5, maxAmount: 5, regrowRate: 100, regrowTimer: 0 } as unknown as ResourceNode;
       sim.resources = [resource];
       survivor.x = resource.x;
       survivor.y = resource.y;

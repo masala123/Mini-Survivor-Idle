@@ -1,4 +1,4 @@
-import { Animal, createAnimal, AnimalFaction } from '../entities/Animal';
+import { Animal, createAnimal } from '../entities/Animal';
 import { World } from '../game/world';
 
 export class EcosystemSystem {

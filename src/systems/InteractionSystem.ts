@@ -1,3 +1,6 @@
+import { SurvivorRole } from '../entities/Survivor';
+import { ColonyFocus } from './GovernanceSystem';
+
 export type PlayerCommand =
   | { type: 'ASSIST_GATHER'; targetId: string; survivorId?: string }
   | { type: 'ASSIST_ATTACK'; targetId: string; survivorId?: string }
@@ -8,7 +11,9 @@ export type PlayerCommand =
   | { type: 'UNLOCK_RECIPE'; recipeId: string }
   | { type: 'TAME_ANIMAL'; targetId: string; survivorId: string }
   | { type: 'MOUNT_ANIMAL'; targetId: string; survivorId: string }
-  | { type: 'DISMOUNT_ANIMAL'; survivorId: string };
+  | { type: 'DISMOUNT_ANIMAL'; survivorId: string }
+  | { type: 'SET_ROLE'; survivorId: string; role: SurvivorRole }
+  | { type: 'SET_GOVERNANCE_FOCUS'; focus: ColonyFocus };
 
 export class InteractionSystem {
   private commandQueue: PlayerCommand[] = [];

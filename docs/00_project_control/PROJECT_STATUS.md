@@ -1,63 +1,19 @@
 # Project Status - Idle Survivor Sandbox
 
-## Current Status: MVP 4 Complete ✅ / Post-MVP Polish Complete ✅
+## Current Status: MVP 6 Complete ✅ / Post-MVP Polish In-Progress 🟡
 
-Core survival simulation and the MVP 4 thematic features (dinosaurs, ancient ruins, dimensional anomalies) are implemented and validated by tests. End-game crafting and scaling have been refined.
+Core survival simulation and the MVP 6 thematic features (dinosaurs, base automation, logistics, victory condition) are implemented and validated by tests.
 
 ### Roadmap Overview
 
 - [x] Phase 0: Project Initialization & Doc Refactoring
-- [x] Phase 1: MVP Foundation (Simulation Tick, Basic AI, Hunger)
-- [x] Phase 2: World Interaction (Gathering, Resources, Day/Night)
-- [x] Phase 3: Player Interaction (Click Assistance, Commands)
-- [x] Phase 4: Basic Visuals (Canvas Renderer, React UI)
-- [x] Phase 5: MVP 1 Release (Polish & Balance)
+- [x] Phase 1-5: MVP 1 Foundation (Simulation, AI, Hunger, Visuals, Interaction)
 - [x] Phase 6: MVP 2 - Expansion (Crafting, Building, Tools)
-  - [x] Implement Progression System & Crafting Unlocks
-  - [x] Add tool durability and equipment improvements
-  - [x] Implement base building expansion
-  - [x] Introduce monster waves and combat threats
 - [x] Phase 7: MVP 3 - Depth (Survivors, Weather, Farming)
-  - [x] Implement Multiple Survivors support
-  - [x] Implement Morale & Social simulation
-  - [x] Implement Weather System (Rain, Cold)
-  - [x] Implement Farming & Food Production (basic farm plot)
-  - [x] Add Survivor Personality traits (bravery/sociability/neuroticism)
-- [x] Phase 8: MVP 4 - Thematic Update & Mystery
-  - [x] Introduce dinosaur-themed monsters (Compy, Raptor, T-Rex)
-  - [x] Add prehistoric resources and items (Bones, Fossils, Ancient Tech)
-  - [x] Implement Crystal Ruins and dimensional POIs
-  - [x] Update visual rendering to match prehistoric pixel theme
-
-### Accomplishments
-
-- [x] Decoupled Simulation/Rendering architecture.
-- [x] Utility-based Survivor AI with needs and social awareness.
-- [x] Day/Night cycle with time progression.
-- [x] Dynamic Weather System (Rain, Cold) with environmental effects.
-- [x] Command-based player interaction system.
-- [x] Canvas-based world rendering with weather visual effects.
-- [x] Resource regeneration system.
-- [x] Game Over/Restart loop.
-- [x] Progression System for unlocking crafting recipes.
-- [x] Wave-based monster spawning system.
-- [x] Improved Tool Durability & Equipment system.
-- [x] Base Building Expansion with construction progress.
-- [x] Multiple Survivors with Morale and Social Interaction.
-- [x] Basic Farming & Food Production via farm plot growth.
-- [x] Survivor Personality Traits affecting behavior.
-- [x] Dinosaur-themed monsters (Compsognathus, Velociraptor, T-Rex) implemented.
-- [x] Prehistoric resources (Ferns, Bones, Fossils) and Ancient Tech nodes added.
-- [x] Crystal Ruins and Dimensional Anomaly POIs implemented.
-- [x] Visual rendering updated to display the new thematic elements on Canvas and Minimap.
-- [x] Post-MVP Polish: Dynamic weapon damage implemented via tool stats (`bone_club`, `crystal_spear`).
-- [x] Post-MVP Polish: `dimensional_beacon` end-game structure added, bridging exploration and resource gathering.
-- [x] Comprehensive test suite (39 tests passing).
-
+- [x] Phase 8: MVP 4 - Thematic Update & Mystery (Dinosaurs, Ruins)
+- [x] Phase 9: MVP 5 - Ecosystem Depth & Taming
 - [x] Phase 10: MVP 6 - Advanced Base Building & Logistics
-  - [x] Advanced Defenses (Spike Traps, Bone Walls)
-  - [x] Logistics & Sorting (Stockpiles, Hauling AI)
-  - [x] Automated Processing (Furnaces, Refineries)
+- [x] Post-MVP 6: Finalized Victory Condition & Hazard Biomes
 
 ### Accomplishments
 
@@ -92,6 +48,13 @@ Core survival simulation and the MVP 4 thematic features (dinosaurs, ancient rui
 - [x] MVP 6: HAUL AI Task - Survivors automatically sort and move materials into dedicated storage.
 - [x] MVP 6: Automated Processing - Implemented `Stone Furnace` for processing Raw Fossils into `Refined Fossils`.
 - [x] MVP 6: Autonomous Refinery AI - Survivors manage furnace input/output logistics.
+- [x] Post-MVP 6: Finalized Victory Condition - Building the Dimensional Beacon triggers the game's victory state and ends the simulation.
+- [x] Post-MVP 6: Implemented Hazard Biomes (Volcanic Heat) - Survivors take periodic damage when standing in volcanic biomes.
+- [x] Post-MVP 6: UI/UX Cleanup - Reorganized HUD into logical sections and compacted layout for usability.
+- [x] MVP 7: Job Roles - Survivors can now be assigned to specialized roles (Gatherer, Builder, Logistics) that influence AI task prioritization.
+- [x] MVP 7: Power System - Implemented energy generation (Solar, Coal), storage (Batteries), and powered machines (Electric Smelter).
+- [x] MVP 7: Advanced Farming - Added Water Pumps and Irrigation bonuses for farm plots.
+- [x] MVP 7: Colony Governance - Implemented global priorities (Survival, Expansion, Logistics, Exploration) that shift AI behavior colony-wide.
 - [x] Comprehensive test suite (39 tests passing).
 
 ### Documentation Coverage (Source of Truth)
@@ -101,19 +64,23 @@ Core survival simulation and the MVP 4 thematic features (dinosaurs, ancient rui
 | Core Simulation | [01_game_vision.md](../02_design/01_game_vision.md) | Current ✅ |
 | AI Behavior | [03_survivor_ai_system.md](../02_design/03_survivor_ai_system.md) | Current ✅ |
 | Animal AI | [animal_ai_system.md](../02_design/animal_ai_system.md) | Current ✅ |
-| Ecosystem | [06_world_and_biomes.md](../02_design/06_world_and_biomes.md) | Update Needed 🟡 |
+| Ecosystem | [06_world_and_biomes.md](../02_design/06_world_and_biomes.md) | Current ✅ |
 | Combat | [07_combat_system.md](../02_design/07_combat_system.md) | Current ✅ |
 | Progression | [05_progression_system.md](../02_design/05_progression_system.md) | Current ✅ |
 | Taming | [taming_system.md](../02_design/taming_system.md) | Current ✅ |
 | Riding | [riding_system.md](../02_design/riding_system.md) | Current ✅ |
-| Advanced Base | [base_building_system.md](../02_design/08_base_building_system.md) | Update Needed 🟡 |
+| Advanced Base | [08_base_building_system.md](../02_design/08_base_building_system.md) | Current ✅ |
 | Automated Processing | [refinery_system.md](../02_design/refinery_system.md) | Current ✅ |
+| Power System | [11_power_system.md](../02_design/11_power_system.md) | Current ✅ |
+| Advanced Farming | [12_advanced_farming.md](../02_design/12_advanced_farming.md) | Current ✅ |
+| Colony Governance | [13_colony_governance.md](../02_design/13_colony_governance.md) | Current ✅ |
 
-### Next Steps (Post-MVP 6)
+### Next Steps (Post-MVP 7)
 
-- Finalize the Victory Condition (Dimensional Portal).
-- Implement Hazard Biomes (Volcanic Heat).
-- General balancing and UX polish.
+- **Scenario System**: Add specific challenges or missions (e.g., "Survive the Heatwave").
+- **Visual Polish**: Add more animations, particles, and sound effects.
+- **Save/Load System**: Implement persistent world state.
+- **Balance Pass**: Fine-tune resource rates and threat levels.
 
 ### Known Blockers
 

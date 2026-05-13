@@ -2,6 +2,15 @@
 
 ## 2026-05-13
 
+### Added (Post-MVP 6)
+- **Victory Condition**: Added a functional victory state where completing the `Dimensional Beacon` successfully concludes the simulation, showing a "VICTORY!" message on the HUD with a "PLAY AGAIN" restart button.
+- **Hazard Biomes**: Added `VOLCANIC` biome which periodically deals heat damage to survivors standing in it.
+- **Job Roles (MVP 7)**: Introduced specialized roles (Generalist, Gatherer, Builder, Logistics) with a role selector in the HUD. AI now prioritizes tasks based on the assigned job.
+- **Power System (MVP 7)**: Implemented electricity simulation with Solar Panels, Coal Generators, and Battery Banks. Added powered Electric Smelters (2x speed).
+- **Advanced Farming (MVP 7)**: Added Water Pumps and irrigation logic. Irrigated farm plots grow 2x faster.
+- **Colony Governance (MVP 7)**: Added global colony priorities (Survival, Expansion, Logistics, Exploration) that shift AI decision-making for all survivors.
+- **UI/UX Polish**: Compacted HUD layout and added visual indicators for power status and irrigation.
+
 ### Added (MVP 4 & 5)
 - **Dinosaur Ecosystem**: Introduced `Compsognathus`, `Velociraptor`, and `T-Rex` as monsters.
 - **Natural Ecosystem**: Added `EcosystemSystem` for natural dinosaur spawning during the day (Triceratops, Ankylosaurus).

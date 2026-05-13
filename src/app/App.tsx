@@ -155,74 +155,91 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div style={{ position: 'relative', width: '800px', height: '600px', margin: '20px auto', border: '2px solid #333' }}>
-      <canvas 
-        ref={canvasRef} 
-        onClick={handleCanvasClick}
-        onMouseMove={handleCanvasMove}
-        width={800} 
-        height={600}
-        style={{ display: 'block' }}
-      />
-      <Hud
-        sim={simRef.current}
-        onAssist={handleAssist}
-        onUnlock={handleUnlock}
-        selectedSurvivorId={selectedSurvivorId}
-        onSelectSurvivor={setSelectedSurvivorId}
-        onEmergencyFeed={survivorId => simRef.current.interaction.pushCommand({ type: 'EMERGENCY_FEED', survivorId })}
-        onEmergencyHeal={survivorId => simRef.current.interaction.pushCommand({ type: 'EMERGENCY_HEAL', survivorId })}
-        onGiveItem={(survivorId, itemId) => simRef.current.interaction.pushCommand({ type: 'GIVE_ITEM', survivorId, itemId })}
-        placementStructureId={placementStructureId}
-        onBeginPlaceStructure={structureId => {
-          setPlacementStructureId(structureId);
-          const valid = isPlacementValid({
-            x: 0,
-            y: 0,
-            structures: simRef.current.structures,
-            resources: simRef.current.resources,
-            survivors: simRef.current.survivors,
-            animals: simRef.current.animals,
-          });
-          rendererRef.current?.setPlacementPreview({ structureId, x: 0, y: 0, isValid: valid });
-        }}
-        onCancelPlaceStructure={() => {
-          setPlacementStructureId(null);
-          rendererRef.current?.setPlacementPreview(null);
-        }}
-        onMount={(survivorId, animalId) => simRef.current.interaction.pushCommand({ type: 'MOUNT_ANIMAL', survivorId, targetId: animalId })}
-        onDismount={survivorId => simRef.current.interaction.pushCommand({ type: 'DISMOUNT_ANIMAL', survivorId })}
-      />
-      {simRef.current.isGameOver && (
-          <button 
-            onClick={handleReset}
-            style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                padding: '20px 40px',
-                fontSize: '20px',
-                backgroundColor: '#ff4444',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
+    <div style={{ 
+        position: 'relative', 
+        width: '100vw', 
+        height: '100vh', 
+        backgroundColor: '#111', 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center',
+        overflow: 'hidden'
+    }}>
+      <div style={{ position: 'relative', width: '800px', height: '600px', border: '2px solid #333', backgroundColor: '#000' }}>
+        <canvas 
+            ref={canvasRef} 
+            onClick={handleCanvasClick}
+            onMouseMove={handleCanvasMove}
+            width={800} 
+            height={600}
+            style={{ display: 'block' }}
+        />
+        <Hud
+            sim={simRef.current}
+            onAssist={handleAssist}
+            onUnlock={handleUnlock}
+            selectedSurvivorId={selectedSurvivorId}
+            onSelectSurvivor={setSelectedSurvivorId}
+            onEmergencyFeed={survivorId => simRef.current.interaction.pushCommand({ type: 'EMERGENCY_FEED', survivorId })}
+            onEmergencyHeal={survivorId => simRef.current.interaction.pushCommand({ type: 'EMERGENCY_HEAL', survivorId })}
+            onGiveItem={(survivorId, itemId) => simRef.current.interaction.pushCommand({ type: 'GIVE_ITEM', survivorId, itemId })}
+            onSetRole={(survivorId, role) => simRef.current.interaction.pushCommand({ type: 'SET_ROLE', survivorId, role })}
+            placementStructureId={placementStructureId}
+            onBeginPlaceStructure={structureId => {
+            setPlacementStructureId(structureId);
+            const valid = isPlacementValid({
+                x: 0,
+                y: 0,
+                structures: simRef.current.structures,
+                resources: simRef.current.resources,
+                survivors: simRef.current.survivors,
+                animals: simRef.current.animals,
+            });
+            rendererRef.current?.setPlacementPreview({ structureId, x: 0, y: 0, isValid: valid });
             }}
-          >
-              RESTART GAME
-          </button>
-      )}
-      <div style={{
-          position: 'absolute',
-          bottom: 10,
-          left: 10,
-          color: 'white',
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          padding: '5px'
-      }}>
-          Simulation Tick: {simRef.current.tickCount}
+            onCancelPlaceStructure={() => {
+            setPlacementStructureId(null);
+            rendererRef.current?.setPlacementPreview(null);
+            }}
+            onMount={(survivorId, animalId) => simRef.current.interaction.pushCommand({ type: 'MOUNT_ANIMAL', survivorId, targetId: animalId })}
+            onDismount={survivorId => simRef.current.interaction.pushCommand({ type: 'DISMOUNT_ANIMAL', survivorId })}
+        />
+        {(simRef.current.isGameOver || simRef.current.isVictory) && (
+            <button 
+                onClick={handleReset}
+                style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    padding: '20px 40px',
+                    fontSize: '20px',
+                    backgroundColor: simRef.current.isVictory ? '#44ff44' : '#ff4444',
+                    color: simRef.current.isVictory ? 'black' : 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    pointerEvents: 'auto',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+                    fontWeight: 'bold',
+                    zIndex: 1000
+                }}
+            >
+                {simRef.current.isVictory ? 'PLAY AGAIN' : 'RESTART GAME'}
+            </button>
+        )}
+        <div style={{
+            position: 'absolute',
+            bottom: 10,
+            left: 10,
+            color: 'white',
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            padding: '5px',
+            fontSize: '11px',
+            fontFamily: 'monospace'
+        }}>
+            Simulation Tick: {simRef.current.tickCount}
+        </div>
       </div>
     </div>
   );

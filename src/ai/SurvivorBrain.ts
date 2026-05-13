@@ -1,5 +1,5 @@
 import { Survivor } from '../entities/Survivor';
-import { ResourceNode, resourceToItemMap, ResourceType } from '../entities/ResourceNode';
+import { ResourceNode, resourceToItemMap } from '../entities/ResourceNode';
 import { Structure, createStructure } from '../entities/Structure';
 import { TimeState } from '../systems/TimeSystem';
 import { ProgressionSystem } from '../systems/ProgressionSystem';
@@ -8,6 +8,8 @@ import { structureData } from '../data/structures';
 import { Animal } from '../entities/Animal';
 import { itemData } from '../data/items';
 import { World } from '../game/world';
+
+import { ColonyFocus } from '../systems/GovernanceSystem';
 
 export class SurvivorBrain {
   private getInventoryWeight(survivor: Survivor): number {
@@ -27,7 +29,8 @@ export class SurvivorBrain {
     progression: ProgressionSystem,
     allSurvivors: Survivor[],
     world?: World,
-    discovered?: boolean[][]
+    discovered?: boolean[][],
+    focus: ColonyFocus = 'BALANCED'
   ): void {
     const hungerThreshold = 50;
     const isHungry = survivor.stats.hunger < hungerThreshold;
@@ -66,8 +69,6 @@ export class SurvivorBrain {
 
     // 0.5 Utility: Equip Tools & Torches
     const gearPriority = ['crystal_spear', 'bone_club', 'axe', 'torch'];
-    
-    // Find the best gear available (either in inventory or already equipped)
     let bestAvailableGear = null;
     for (const item of gearPriority) {
         if ((survivor.inventory[item] || 0) > 0 || survivor.equippedTool?.id === item) {
@@ -76,7 +77,6 @@ export class SurvivorBrain {
         }
     }
 
-    // A. NIGHT LOGIC: Priority 1 is Torch
     if (time.phase === 'NIGHT') {
         const hasTorch = survivor.equippedTool?.id === 'torch' || (survivor.inventory['torch'] || 0) > 0;
         if (hasTorch && survivor.equippedTool?.id !== 'torch') {
@@ -86,9 +86,7 @@ export class SurvivorBrain {
         }
     }
 
-    // B. NON-NIGHT LOGIC: Priority is best combat/work gear
     if (time.phase !== 'NIGHT' && bestAvailableGear && survivor.equippedTool?.id !== bestAvailableGear) {
-        // Special case: if it's morning and we have a torch, swap it for something better
         survivor.currentTask = { type: 'EQUIP', itemId: bestAvailableGear };
         survivor.debugState = `Task: EQUIP | Reason: Best Gear (${bestAvailableGear})`;
         return;
@@ -111,156 +109,189 @@ export class SurvivorBrain {
         }
     }
 
-    // 2. Survival: Harvest Farm Food
-    if (isHungry && !hasFoodInInventory) {
-      const target = structures.find(
-        s =>
-          s.type === 'farm_plot' &&
-          s.isComplete &&
-          (s.inventory?.['vegetable'] || 0) > 0 &&
-          !allSurvivors.some(other => other.id !== survivor.id && other.currentTask?.targetId === s.id)
-      );
-      if (target) {
-        survivor.currentTask = { type: 'HARVEST_FARM', targetId: target.id };
-        survivor.debugState = `Task: HARVEST_FARM | Reason: Hungry | Target: ${target.id}`;
-        return;
-      }
+    // --- WORK & LOGISTICS (ORDERED BY ROLE + GLOBAL FOCUS) ---
+    const rolePriority = {
+        'GENERALIST': ['SURVIVAL_GATHER', 'BUILDING', 'LOGISTICS', 'PROACTIVE_GATHER'],
+        'GATHERER': ['SURVIVAL_GATHER', 'PROACTIVE_GATHER', 'BUILDING', 'LOGISTICS'],
+        'BUILDER': ['BUILDING', 'SURVIVAL_GATHER', 'LOGISTICS', 'PROACTIVE_GATHER'],
+        'LOGISTICS': ['LOGISTICS', 'BUILDING', 'SURVIVAL_GATHER', 'PROACTIVE_GATHER']
+    };
+
+    let priorities = [...rolePriority[survivor.role]];
+
+    if (focus === 'SURVIVAL') {
+        priorities = priorities.filter(p => p !== 'SURVIVAL_GATHER');
+        priorities.unshift('SURVIVAL_GATHER');
+    } else if (focus === 'EXPANSION') {
+        priorities = priorities.filter(p => p !== 'BUILDING');
+        priorities.unshift('BUILDING');
+    } else if (focus === 'LOGISTICS') {
+        priorities = priorities.filter(p => p !== 'LOGISTICS');
+        priorities.unshift('LOGISTICS');
     }
 
-    // 2. Survival: Gather Food
-    if (isHungry && !hasFoodInInventory) {
-      // Avoid targeting the same resource as another survivor
-      const target = resources.find(r => 
-          r.type === 'BERRY_BUSH' && 
-          r.amount > 0 && 
-          !allSurvivors.some(s => s.id !== survivor.id && s.currentTask?.targetId === r.id)
-      );
-      if (target) {
-        survivor.currentTask = { type: 'GATHER_FOOD', targetId: target.id };
-        survivor.debugState = `Task: GATHER_FOOD | Reason: Starving | Target: ${target.id}`;
-        return;
-      }
-    }
-
-    // 3. Infrastructure: Campfire, Workbench, Chest, or Wall
-    const hasCampfire = structures.some(s => s.type === 'campfire' && s.isComplete);
-    const hasWorkbench = structures.some(s => s.type === 'workbench' && s.isComplete);
-    const hasChest = structures.some(s => s.type === 'chest' && s.isComplete);
-    const hasFarmPlot = structures.some(s => s.type === 'farm_plot' && s.isComplete);
-    const wallCount = structures.filter(s => s.type === 'wall' && s.isComplete).length;
-
-    if (time.phase === 'AFTERNOON') {
-        const targetStructure = !hasCampfire
-          ? 'campfire'
-          : !hasWorkbench
-            ? 'workbench'
-            : !hasChest
-              ? 'chest'
-              : !hasFarmPlot
-                ? 'farm_plot'
-                : wallCount < 4
-                  ? 'wall'
-                  : null;
-        
-        if (targetStructure) {
-            // Check if there is an incomplete structure of this type already
-            const incomplete = structures.find(s => s.type === targetStructure && !s.isComplete);
-            
-            if (incomplete) {
-                survivor.currentTask = { type: 'BUILD', targetId: incomplete.id, progress: 0 };
-                survivor.debugState = `Task: BUILD | Target: Incomplete ${incomplete.type}`;
-                return;
+    for (const p of priorities) {
+        if (p === 'SURVIVAL_GATHER') {
+            if (isHungry && !hasFoodInInventory) {
+                const target = structures.find(
+                    s =>
+                    s.type === 'farm_plot' &&
+                    s.isComplete &&
+                    (s.inventory?.['vegetable'] || 0) > 0 &&
+                    !allSurvivors.some(other => other.id !== survivor.id && other.currentTask?.targetId === s.id)
+                );
+                if (target) {
+                    survivor.currentTask = { type: 'HARVEST_FARM', targetId: target.id };
+                    survivor.debugState = `Task: HARVEST_FARM | Reason: Hungry | Target: ${target.id}`;
+                    return;
+                }
             }
 
-            const data = structureData[targetStructure];
-            const canBuild = data.ingredients.every(ing => (survivor.inventory[ing.itemId] || 0) >= ing.amount);
-            
-            if (canBuild) {
-                survivor.currentTask = { type: 'BUILD', structureId: targetStructure, progress: 0 };
-                survivor.debugState = `Task: BUILD | Reason: Expanding Base | Target: ${data.name}`;
-                return;
-            } else {
-                const missing = data.ingredients.find(ing => (survivor.inventory[ing.itemId] || 0) < ing.amount);
-                if (missing) {
-                    const resourceType = missing.itemId === 'wood' ? 'TREE' : 'STONE';
-                    const target = resources.find(r => r.type === resourceType && r.amount > 0);
-                    if (target) {
-                        survivor.currentTask = { type: 'GATHER_MATERIAL', targetId: target.id };
-                        survivor.debugState = `Task: GATHER_MATERIAL | Reason: Need ${missing.itemId} | Target: ${target.id}`;
+            if (isHungry && !hasFoodInInventory) {
+                const target = resources.find(r => 
+                    r.type === 'BERRY_BUSH' && 
+                    r.amount > 0 && 
+                    !allSurvivors.some(s => s.id !== survivor.id && s.currentTask?.targetId === r.id)
+                );
+                if (target) {
+                    survivor.currentTask = { type: 'GATHER_FOOD', targetId: target.id };
+                    survivor.debugState = `Task: GATHER_FOOD | Reason: Starving | Target: ${target.id}`;
+                    return;
+                }
+            }
+        }
+
+        if (p === 'BUILDING') {
+            const hasCampfire = structures.some(s => s.type === 'campfire' && s.isComplete);
+            const hasWorkbench = structures.some(s => s.type === 'workbench' && s.isComplete);
+            const hasChest = structures.some(s => s.type === 'chest' && s.isComplete);
+            const hasFarmPlot = structures.some(s => s.type === 'farm_plot' && s.isComplete);
+            const wallCount = structures.filter(s => s.type === 'wall' && s.isComplete).length;
+
+            if (time.phase === 'AFTERNOON' || (survivor.role === 'BUILDER' && time.phase !== 'NIGHT')) {
+                const targetStructure = !hasCampfire
+                    ? 'campfire'
+                    : !hasWorkbench
+                        ? 'workbench'
+                        : !hasChest
+                            ? 'chest'
+                            : !hasFarmPlot
+                                ? 'farm_plot'
+                                : wallCount < 4
+                                    ? 'wall'
+                                    : null;
+                
+                if (targetStructure) {
+                    const incomplete = structures.find(s => s.type === targetStructure && !s.isComplete);
+                    if (incomplete) {
+                        survivor.currentTask = { type: 'BUILD', targetId: incomplete.id, progress: 0 };
+                        survivor.debugState = `Task: BUILD | Target: Incomplete ${incomplete.type}`;
+                        return;
+                    }
+
+                    const data = structureData[targetStructure];
+                    const canBuild = data.ingredients.every(ing => (survivor.inventory[ing.itemId] || 0) >= ing.amount);
+                    if (canBuild) {
+                        survivor.currentTask = { type: 'BUILD', structureId: targetStructure, progress: 0 };
+                        survivor.debugState = `Task: BUILD | Target: ${data.name}`;
+                        return;
+                    } else {
+                        const missing = data.ingredients.find(ing => (survivor.inventory[ing.itemId] || 0) < ing.amount);
+                        if (missing) {
+                            const resourceType = missing.itemId === 'wood' ? 'TREE' : 'STONE';
+                            const target = resources.find(r => r.type === resourceType && r.amount > 0);
+                            if (target) {
+                                survivor.currentTask = { type: 'GATHER_MATERIAL', targetId: target.id };
+                                survivor.debugState = `Task: GATHER_MATERIAL | Reason: Need ${missing.itemId}`;
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (p === 'LOGISTICS') {
+            const hasChest = structures.some(s => s.type === 'chest' && s.isComplete);
+            const materialCount = (survivor.inventory['wood'] || 0) + (survivor.inventory['stone'] || 0);
+            if (hasChest && (materialCount > 3 || survivor.role === 'LOGISTICS')) {
+                const chest = structures.find(s => s.type === 'chest' && s.isComplete);
+                if (chest && materialCount > 0) {
+                    survivor.currentTask = { type: 'STORE', targetId: chest.id };
+                    survivor.debugState = 'Task: STORE | Reason: Inventory Management';
+                    return;
+                }
+            }
+
+            if (!isHungry && !isMoraleLow) {
+                const woodShed = structures.find(s => s.type === 'wood_shed' && s.isComplete);
+                const stoneMason = structures.find(s => s.type === 'stone_mason' && s.isComplete);
+                const genericChests = structures.filter(s => s.type === 'chest' && s.isComplete);
+                const furnace = structures.find(s => s.type === 'furnace' && s.isComplete);
+                const smelter = structures.find(s => s.type === 'electric_smelter' && s.isComplete);
+                const generator = structures.find(s => s.type === 'coal_generator' && s.isComplete);
+
+                if (generator && (generator.inventory?.['wood'] || 0) < 5) {
+                    if ((survivor.inventory['wood'] || 0) > 0) {
+                        survivor.currentTask = { type: 'HAUL', targetId: generator.id, itemId: 'wood' };
+                        survivor.debugState = 'Task: HAUL | Fuel Generator';
+                        return;
+                    }
+                }
+
+                const refinery = smelter || furnace;
+                if (refinery) {
+                    if ((refinery.inventory?.['refined_fossil'] || 0) > 0) {
+                        survivor.currentTask = { type: 'HAUL', sourceId: refinery.id, targetId: hasChest ? structures.find(s => s.type === 'chest')!.id : undefined };
+                        survivor.debugState = `Task: HAUL | Empty ${refinery.type}`;
+                        return;
+                    }
+                    const needsFossil = (refinery.inventory?.['fossil'] || 0) < 5;
+                    if (needsFossil && (survivor.inventory['fossil'] || 0) > 0) {
+                        survivor.currentTask = { type: 'HAUL', targetId: refinery.id, itemId: 'fossil' };
+                        survivor.debugState = `Task: HAUL | Supply ${refinery.type}`;
+                        return;
+                    }
+                }
+
+                if (woodShed && (survivor.inventory['wood'] || 0) > 0) {
+                    survivor.currentTask = { type: 'HAUL', targetId: woodShed.id };
+                    survivor.debugState = 'Task: HAUL | Reason: Sort wood';
+                    return;
+                }
+                if (stoneMason && (survivor.inventory['stone'] || 0) > 0) {
+                    survivor.currentTask = { type: 'HAUL', targetId: stoneMason.id };
+                    survivor.debugState = 'Task: HAUL | Reason: Sort stone';
+                    return;
+                }
+
+                for (const chest of genericChests) {
+                    if (woodShed && (chest.inventory?.['wood'] || 0) > 0) {
+                        survivor.currentTask = { type: 'HAUL', sourceId: chest.id, targetId: woodShed.id, itemId: 'wood' };
+                        survivor.debugState = 'Task: HAUL | Sort Wood Shed';
+                        return;
+                    }
+                    if (stoneMason && (chest.inventory?.['stone'] || 0) > 0) {
+                        survivor.currentTask = { type: 'HAUL', sourceId: chest.id, targetId: stoneMason.id, itemId: 'stone' };
+                        survivor.debugState = 'Task: HAUL | Sort Stone Mason';
                         return;
                     }
                 }
             }
         }
-    }
 
-    // 3.5 Storage: Store excess materials
-    const materialCount = (survivor.inventory['wood'] || 0) + (survivor.inventory['stone'] || 0);
-    if (hasChest && materialCount > 3) {
-        const chest = structures.find(s => s.type === 'chest' && s.isComplete);
-        if (chest) {
-            survivor.currentTask = { type: 'STORE', targetId: chest.id };
-            survivor.debugState = 'Task: STORE | Reason: Inventory full';
-            return;
-        }
-    }
-
-    // 3.7 Logistics: Haul and Sort materials
-    if (!isHungry && !isMoraleLow) {
-        const woodShed = structures.find(s => s.type === 'wood_shed' && s.isComplete);
-        const stoneMason = structures.find(s => s.type === 'stone_mason' && s.isComplete);
-        const genericChests = structures.filter(s => s.type === 'chest' && s.isComplete);
-
-        // A. From Inventory
-        if (woodShed && (survivor.inventory['wood'] || 0) > 0) {
-            survivor.currentTask = { type: 'HAUL', targetId: woodShed.id };
-            survivor.debugState = 'Task: HAUL | Reason: Sort wood';
-            return;
-        }
-        if (stoneMason && (survivor.inventory['stone'] || 0) > 0) {
-            survivor.currentTask = { type: 'HAUL', targetId: stoneMason.id };
-            survivor.debugState = 'Task: HAUL | Reason: Sort stone';
-            return;
-        }
-
-        // B. From Generic Chests to Stockpiles
-        for (const chest of genericChests) {
-            if (woodShed && (chest.inventory?.['wood'] || 0) > 0) {
-                survivor.currentTask = { type: 'HAUL', sourceId: chest.id, targetId: woodShed.id, itemId: 'wood' };
-                survivor.debugState = 'Task: HAUL | Reason: Move wood to shed';
-                return;
-            }
-            if (stoneMason && (chest.inventory?.['stone'] || 0) > 0) {
-                survivor.currentTask = { type: 'HAUL', sourceId: chest.id, targetId: stoneMason.id, itemId: 'stone' };
-                survivor.debugState = 'Task: HAUL | Reason: Move stone to mason';
-                return;
-            }
-        }
-    }
-
-    // 3.8 Logistics: Manage Furnace
-    if (!isHungry && !isMoraleLow) {
-        const furnace = structures.find(s => s.type === 'furnace' && s.isComplete);
-        if (furnace) {
-            // A. Empty Furnace
-            if ((furnace.inventory?.['refined_fossil'] || 0) > 0) {
-                survivor.currentTask = { type: 'HAUL', sourceId: furnace.id, targetId: hasChest ? structures.find(s => s.type === 'chest')!.id : undefined };
-                survivor.debugState = 'Task: HAUL | Reason: Empty furnace';
-                return;
-            }
-            // B. Supply Furnace
-            const needsFossil = (furnace.inventory?.['fossil'] || 0) < 5;
-            const needsWood = (furnace.inventory?.['wood'] || 0) < 5;
-            
-            if (needsFossil && (survivor.inventory['fossil'] || 0) > 0) {
-                survivor.currentTask = { type: 'HAUL', targetId: furnace.id, itemId: 'fossil' };
-                survivor.debugState = 'Task: HAUL | Reason: Supply furnace (fossil)';
-                return;
-            }
-            if (needsWood && (survivor.inventory['wood'] || 0) > 0) {
-                survivor.currentTask = { type: 'HAUL', targetId: furnace.id, itemId: 'wood' };
-                survivor.debugState = 'Task: HAUL | Reason: Supply furnace (wood)';
-                return;
+        if (p === 'PROACTIVE_GATHER') {
+            if (survivor.stats.hunger < 90 && !hasFoodInInventory) {
+                const target = resources.find(r => 
+                    (r.type === 'BERRY_BUSH' || r.type === 'FERN_BUSH') && 
+                    r.amount > 0 &&
+                    !allSurvivors.some(s => s.id !== survivor.id && s.currentTask?.targetId === r.id)
+                );
+                if (target) {
+                    survivor.currentTask = { type: 'GATHER_FOOD', targetId: target.id };
+                    survivor.debugState = `Task: GATHER_FOOD | Reason: Stockpiling`;
+                    return;
+                }
             }
         }
     }
@@ -273,23 +304,9 @@ export class SurvivorBrain {
             const canCraft = axeRecipe.ingredients.every(ing => (survivor.inventory[ing.itemId] || 0) >= ing.amount);
             if (canCraft) {
                 survivor.currentTask = { type: 'CRAFT', recipeId: axeRecipe.id };
-                survivor.debugState = 'Task: CRAFT | Reason: Need tools | Target: Stone Axe';
+                survivor.debugState = 'Task: CRAFT | Stone Axe';
                 return;
             }
-        }
-    }
-
-    // 5. Proactive Gathering
-    if (survivor.stats.hunger < 90 && !hasFoodInInventory) {
-        const target = resources.find(r => 
-            (r.type === 'BERRY_BUSH' || r.type === 'FERN_BUSH') && 
-            r.amount > 0 &&
-            !allSurvivors.some(s => s.id !== survivor.id && s.currentTask?.targetId === r.id)
-        );
-        if (target) {
-            survivor.currentTask = { type: 'GATHER_FOOD', targetId: target.id };
-            survivor.debugState = `Task: GATHER_FOOD | Reason: Stockpiling | Target: ${target.id}`;
-            return;
         }
     }
 
@@ -302,7 +319,6 @@ export class SurvivorBrain {
         for (let tx = 0; tx < widthTiles; tx++) {
           if (discovered[ty]?.[tx] === true) continue;
 
-          // Prefer frontier tiles: unknown tile adjacent to a known tile.
           const hasKnownNeighbor =
             discovered[ty]?.[tx - 1] === true ||
             discovered[ty]?.[tx + 1] === true ||
@@ -361,7 +377,6 @@ export class SurvivorBrain {
     moveTarget.x += (dx / dist) * speed;
     moveTarget.y += (dy / dist) * speed;
     
-    // Sync survivor position immediately to avoid jitter
     survivor.x = moveTarget.x;
     survivor.y = moveTarget.y;
   }
@@ -420,11 +435,9 @@ export class SurvivorBrain {
             if (!target && sId) {
                 const data = structureData[sId];
                 if (data) {
-                    // Consume materials
                     for (const ing of data.ingredients) {
                         survivor.inventory[ing.itemId] = (survivor.inventory[ing.itemId] || 0) - ing.amount;
                     }
-                    // Place it near survivor
                     const offsetX = (Math.random() - 0.5) * 40;
                     const offsetY = (Math.random() - 0.5) * 40;
                     target = createStructure(`${sId}_${Date.now()}`, sId, survivor.x + offsetX, survivor.y + offsetY, false);
@@ -437,7 +450,7 @@ export class SurvivorBrain {
             if (target && !target.isComplete) {
                 const dist = Math.sqrt(Math.pow(survivor.x - target.x, 2) + Math.pow(survivor.y - target.y, 2));
                 if (dist < 30) {
-                    target.constructionProgress += 20; // 5 ticks to finish
+                    target.constructionProgress += 20; 
                     survivor.debugState = `Building ${target.type}... ${target.constructionProgress}%`;
                     if (target.constructionProgress >= 100) {
                         target.isComplete = true;
@@ -487,7 +500,6 @@ export class SurvivorBrain {
             if (target && target.type === 'chest' && target.isComplete) {
                 const dist = Math.sqrt(Math.pow(survivor.x - target.x, 2) + Math.pow(survivor.y - target.y, 2));
                 if (dist < 30) {
-                    // Deposit all materials
                     for (const itemId in survivor.inventory) {
                         const item = itemData[itemId];
                         if (item && item.type === 'MATERIAL') {
@@ -553,7 +565,7 @@ export class SurvivorBrain {
         case 'HAUL': {
             const sId = survivor.currentTask?.sourceId;
             const tId = survivor.currentTask?.targetId;
-            const itemId = survivor.currentTask?.itemId; // Optional specific item
+            const itemId = survivor.currentTask?.itemId; 
             
             const target = structures.find(s => s.id === tId);
             if (!target || !target.isComplete) {
@@ -562,47 +574,41 @@ export class SurvivorBrain {
             }
 
             if (sId) {
-                // Moving from source structure to target
                 const source = structures.find(s => s.id === sId);
                 if (!source || !source.isComplete || !source.inventory) {
                     survivor.currentTask = null;
                     break;
                 }
 
-                // If not at source, move there
                 const distSource = Math.sqrt(Math.pow(survivor.x - source.x, 2) + Math.pow(survivor.y - source.y, 2));
                 if (distSource > 20) {
                     this.moveSurvivor(survivor, animals, source.x, source.y);
                     survivor.debugState = `Moving to source: ${source.type}`;
                 } else {
-                    // At source: Take items
                     const key = itemId || Object.keys(source.inventory).find(k => source.inventory![k] > 0);
                     if (key && source.inventory[key] > 0) {
                         const amount = source.inventory[key];
                         survivor.inventory[key] = (survivor.inventory[key] || 0) + amount;
                         source.inventory[key] = 0;
                         survivor.debugState = `Took ${key} from ${source.type}`;
-                        // Next tick will move to target because sId is still set but source is empty? 
-                        // Actually, let's clear sId so we know we are carrying
                         survivor.currentTask!.sourceId = undefined; 
                     } else {
                         survivor.currentTask = null;
                     }
                 }
             } else {
-                // Moving from inventory to target
                 const distTarget = Math.sqrt(Math.pow(survivor.x - target.x, 2) + Math.pow(survivor.y - target.y, 2));
                 if (distTarget > 20) {
                     this.moveSurvivor(survivor, animals, target.x, target.y);
                     survivor.debugState = `Hauling to ${target.type}`;
                 } else {
-                    // At target: Deposit
-                    const itemsToStore = target.type === 'wood_shed' ? ['wood'] : (target.type === 'stone_mason' ? ['stone'] : ['wood', 'stone']);
+                    const itemsToStore = target.type === 'wood_shed' ? ['wood'] : (target.type === 'stone_mason' ? ['stone'] : (target.type === 'coal_generator' ? ['wood'] : ['wood', 'stone', 'fossil', 'refined_fossil']));
                     let storedAny = false;
                     for (const key of itemsToStore) {
                         const amount = survivor.inventory[key] || 0;
                         if (amount > 0) {
-                            target.inventory![key] = (target.inventory![key] || 0) + amount;
+                            if (!target.inventory) target.inventory = {};
+                            target.inventory[key] = (target.inventory[key] || 0) + amount;
                             survivor.inventory[key] = 0;
                             storedAny = true;
                         }

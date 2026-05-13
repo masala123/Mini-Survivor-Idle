@@ -1,4 +1,4 @@
-import { Animal, AnimalTask } from '../entities/Animal';
+import { Animal } from '../entities/Animal';
 import { ResourceNode } from '../entities/ResourceNode';
 import { Survivor } from '../entities/Survivor';
 

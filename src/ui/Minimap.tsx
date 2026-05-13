@@ -13,6 +13,8 @@ const biomeColor = (biome: BiomeType): string => {
       return '#2b3b2f';
     case 'DESERT':
       return '#7a6b3f';
+    case 'VOLCANIC':
+      return '#4a1515';
   }
 };
 

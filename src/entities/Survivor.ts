@@ -9,10 +9,13 @@ export interface Personality {
   neuroticism: number; // 0..1 (higher = worse mood under stress)
 }
 
+export type SurvivorRole = 'GENERALIST' | 'GATHERER' | 'BUILDER' | 'LOGISTICS';
+
 export interface Survivor {
   id: string;
   x: number;
   y: number;
+  role: SurvivorRole;
   personality: Personality;
   scoutCooldown: number;
   stats: {
@@ -66,6 +69,7 @@ export const createSurvivor = (id: string, x: number, y: number, personality?: P
   id,
   x,
   y,
+  role: 'GENERALIST',
   personality: {
     bravery: clamp01(personality?.bravery ?? 0.5),
     sociability: clamp01(personality?.sociability ?? 0.5),

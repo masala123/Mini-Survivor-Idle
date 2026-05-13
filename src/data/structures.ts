@@ -66,6 +66,36 @@ export const structureData: Record<string, StructureData> = {
     type: 'DEFENSE',
     ingredients: [{ itemId: 'wood', amount: 2 }, { itemId: 'bone', amount: 1 }],
   },
+  solar_panel: {
+    id: 'solar_panel',
+    name: 'Solar Panel',
+    type: 'UTILITY',
+    ingredients: [{ itemId: 'ancient_tech', amount: 1 }, { itemId: 'refined_fossil', amount: 1 }, { itemId: 'stone', amount: 2 }],
+  },
+  coal_generator: {
+    id: 'coal_generator',
+    name: 'Coal Generator',
+    type: 'UTILITY',
+    ingredients: [{ itemId: 'stone', amount: 5 }, { itemId: 'refined_fossil', amount: 2 }],
+  },
+  battery_bank: {
+    id: 'battery_bank',
+    name: 'Battery Bank',
+    type: 'UTILITY',
+    ingredients: [{ itemId: 'ancient_tech', amount: 1 }, { itemId: 'refined_fossil', amount: 2 }],
+  },
+  electric_smelter: {
+    id: 'electric_smelter',
+    name: 'Electric Smelter',
+    type: 'PRODUCTION',
+    ingredients: [{ itemId: 'stone', amount: 4 }, { itemId: 'refined_fossil', amount: 2 }, { itemId: 'ancient_tech', amount: 1 }],
+  },
+  water_pump: {
+    id: 'water_pump',
+    name: 'Water Pump',
+    type: 'UTILITY',
+    ingredients: [{ itemId: 'stone', amount: 5 }, { itemId: 'refined_fossil', amount: 2 }, { itemId: 'ancient_tech', amount: 1 }],
+  },
   dimensional_beacon: {
     id: 'dimensional_beacon',
     name: 'Dimensional Beacon',

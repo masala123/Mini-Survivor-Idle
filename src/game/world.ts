@@ -1,4 +1,4 @@
-export type BiomeType = 'GRASSLAND' | 'FOREST' | 'SWAMP' | 'DESERT';
+export type BiomeType = 'GRASSLAND' | 'FOREST' | 'SWAMP' | 'DESERT' | 'VOLCANIC';
 
 export interface WorldConfig {
   seed: number;
@@ -47,10 +47,11 @@ export const createWorld = (seed: number, widthTiles: number, heightTiles: numbe
     const localSeed = hash2(seed, tx, ty);
     const rand = mulberry32(localSeed);
     const r = rand();
-    if (r < 0.5) return 'GRASSLAND';
-    if (r < 0.75) return 'FOREST';
-    if (r < 0.9) return 'SWAMP';
-    return 'DESERT';
+    if (r < 0.4) return 'GRASSLAND';
+    if (r < 0.65) return 'FOREST';
+    if (r < 0.8) return 'SWAMP';
+    if (r < 0.9) return 'DESERT';
+    return 'VOLCANIC';
   };
 
   const biomeAtWorld = (x: number, y: number): BiomeType => {

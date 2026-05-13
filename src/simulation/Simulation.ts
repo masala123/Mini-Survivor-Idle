@@ -13,11 +13,14 @@ import { FarmingSystem } from '../systems/FarmingSystem';
 import { EcosystemSystem } from '../systems/EcosystemSystem';
 import { AnimalAISystem } from '../systems/AnimalAISystem';
 import { RefinerySystem } from '../systems/RefinerySystem';
+import { PowerSystem } from '../systems/PowerSystem';
+import { GovernanceSystem } from '../systems/GovernanceSystem';
 
 import { Structure } from '../entities/Structure';
 
 import { Animal } from '../entities/Animal';
 import { CombatSystem } from '../systems/CombatSystem';
+import { itemData } from '../data/items';
 import { structureData } from '../data/structures';
 import { createStructure } from '../entities/Structure';
 import { isPlacementValid } from '../game/placement';
@@ -43,7 +46,10 @@ export class Simulation {
   public wave: WaveSystem;
   public moraleSystem: MoraleSystem;
   public weather: WeatherSystem;
+  public power: PowerSystem;
+  public governance: GovernanceSystem;
   public isGameOver: boolean = false;
+  public isVictory: boolean = false;
 
   private brain: SurvivorBrain;
   private hungerSystem: HungerSystem;
@@ -65,6 +71,8 @@ export class Simulation {
     this.wave = new WaveSystem();
     this.moraleSystem = new MoraleSystem();
     this.weather = new WeatherSystem();
+    this.power = new PowerSystem();
+    this.governance = new GovernanceSystem();
     this.farmingSystem = new FarmingSystem();
     this.ecosystemSystem = new EcosystemSystem();
     this.animalAISystem = new AnimalAISystem();
@@ -96,7 +104,7 @@ export class Simulation {
   }
 
   public tick() {
-    if (this.isGameOver) return;
+    if (this.isGameOver || this.isVictory) return;
 
     this.tickCount++;
 
@@ -112,8 +120,9 @@ export class Simulation {
     this.time.tick();
     this.weather.tick();
     this.updateDiscovery();
-    this.farmingSystem.tick(this.structures, this.weather.state);
-    this.refinerySystem.tick(this.structures);
+    this.farmingSystem.tick(this.structures, this.weather.state, this.power);
+    this.power.tick(this.structures, this.time.state, this.weather.state);
+    this.refinerySystem.tick(this.structures, this.power);
     this.ecosystemSystem.tick(this.tickCount, this.animals, this.world, this.time.state.phase);
     this.animalAISystem.tick(this.animals, this.resources, this.survivors);
     this.handleAnimalSpawning();
@@ -148,6 +157,24 @@ export class Simulation {
         }
     }
 
+    // Hazard Biomes Effects
+    for (const survivor of this.survivors) {
+      if (this.tickCount % 10 === 0) {
+        const biome = this.world.biomeAtWorld(survivor.x, survivor.y);
+        if (biome === 'VOLCANIC') {
+          survivor.stats.health -= 2;
+          survivor.debugState = 'Taking Volcanic Heat Damage!';
+        }
+      }
+    }
+
+    // Check Victory
+    const beacon = this.structures.find(s => s.type === 'dimensional_beacon' && s.isComplete);
+    if (beacon) {
+      this.isVictory = true;
+      return;
+    }
+
     // 3. AI Decision & Execution
     for (const survivor of this.survivors) {
        if (survivor.stats.health <= 0) {
@@ -166,7 +193,8 @@ export class Simulation {
            this.progression,
            this.survivors,
            this.world,
-           this.discovered
+           this.discovered,
+           this.governance.state.globalFocus
          );
        }
        
@@ -391,6 +419,18 @@ export class Simulation {
         survivor.mountedAnimalId = animal.id;
         animal.mountedBySurvivorId = survivor.id;
         survivor.debugState = `Player: Riding ${animal.type}`;
+        break;
+      }
+      case 'SET_ROLE': {
+        const survivor = this.survivors.find(s => s.id === cmd.survivorId);
+        if (survivor) {
+          survivor.role = cmd.role;
+          survivor.debugState = `Player: Set Role to ${cmd.role}`;
+        }
+        break;
+      }
+      case 'SET_GOVERNANCE_FOCUS': {
+        this.governance.setFocus(cmd.focus);
         break;
       }
       case 'DISMOUNT_ANIMAL': {
